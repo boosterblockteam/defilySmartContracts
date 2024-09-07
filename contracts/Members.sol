@@ -224,7 +224,7 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
       require(msg.sender == stakingAddress, "Only the staking conrtract can call  this function"); 
       membershipOfUsers[_userId][_index].staked += _amount;
     }
-//
+    
     function claimMembershipReward(uint256 _nftUse) public {
         require(accountContract.ownerOf(_nftUse) == msg.sender ,"Not the owner"); //Verifica expiracion
         emit RewardClaimed(_nftUse, rewards[_nftUse]);
