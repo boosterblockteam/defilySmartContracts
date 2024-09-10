@@ -22,6 +22,8 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
         uint256 public partnerShipRewards;
         address public partnerShip;
         Membership[] public memberships; //Array de membresias
+        uint256 public splitAmount;
+        uint256 public splitAdminAmount;
 
         event UpdateTotalDirect(uint256 indexed _tokenId, uint256 _directVol);
         event UpdateTotalGlobal(uint256 indexed _tokenId, uint256 _directVol);
@@ -84,7 +86,8 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
             accountContract = NFTAccount(_accountContract);
             stakingAddress = _stakingAddress;
             accountAddress = _accountAddress;
-
+            setSplitAdminAmount(80);
+            setSplitAmount(20);
     }
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
         
@@ -155,6 +158,15 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
         promoCodes[_promoCode].discount = _amount;
         promoCodes[_promoCode].isUsed = true;
     }
+
+
+    function setSplitAmount(uint256 _amount) public onlyOwner {
+        splitAmount = _amount;
+    }
+
+    function setSplitAdminAmount(uint256 _amount) public onlyOwner {
+        splitAdminAmount = _amount;
+    }
     
     //Variables de Usuario
 
@@ -204,7 +216,10 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
                 bestMember[_nftUse] = _membershipId;
             }
             accountContract.updateMembership(_nftUse,_membershipId);
-            partnerShipRewards += finalAmount; //DEBE ESTAR DIVIDIDO POR EL PORCENTAJE A RECIBIR
+
+            rewards[_sponsor] += (finalAmount * splitAmount) / 100;
+            partnerShipRewards += (finalAmount * splitAdminAmount) / 100; 
+
              require(USDT.transferFrom(_wallet, address(this), finalAmount), "USDT transfer failed");
         }else{
                 require(accountContract.ownerOf(_nftUse) == _wallet ,"Debe ser el dueno del NFT"); //Verifica expiracion

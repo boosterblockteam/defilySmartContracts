@@ -21,6 +21,8 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     uint256 public adminWalletsRewards;
     address public adminWallet;
     uint256 public amount;
+    uint256 public splitAmount;
+    uint256 public splitAdminAmount;
 
     event AccountCreated(uint256 indexed tokenId, string NFTName, address user, uint256 sponsor, uint256 nftNumber);
     event RewardFromReferral(uint256 indexed tokenId, uint256 amount, uint256 referredTokenId);
@@ -55,10 +57,13 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         uint256 sponsorNFT;
         uint256 uplineNft; //VERSION BINARIA
         uint256 legSide;   //VERSION BINARIA 1 izquierda 2 derecha
+        address myLeft;   //VERSION BINARIA
+        address myRight;   //VERSION BINARIA
         uint256 creationData;
         uint256[] membership;
         VolumeInfo[] directVol; // Cada posición del array es un tokenId
         VolumeInfo[][] globalVol; // Doble array para almacenar niveles y ID de cada nivel
+        uint256 childrens;
         uint256 staked;
         uint256[] profit;
         uint256[] missedProfit;
@@ -79,7 +84,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
 
     function initialize(address _usdtAddress, address _poiContractAddress, address _memberContract, address _stakingAddress, uint256 _amount) public initializer { 
-        __ERC721_init("MyNFT", "NFT"); 
+        __ERC721_init("Defily NFT", "DLUN"); 
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         USDT = IERC20(_usdtAddress);
@@ -88,6 +93,15 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         membershipContractAddress = _memberContract;
         stakingAddress = _stakingAddress;
         amount = _amount;
+        setSplitAdminAmount(50);
+        setSplitAmount(50);
+
+        for (uint256 i = 0; i < 1000; i++) {
+            // Mint NFT to the contract itself
+            _mint(address(this), tokenIds);
+          // selectedImages.push(i); // Add each minted NFT index to the selectedImages array
+            tokenIds++;
+        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -132,6 +146,14 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         amount = _amount;
     }
 
+    function setSplitAmount(uint256 _amount) public onlyOwner {
+        splitAmount = _amount;
+    }
+
+    function setSplitAdminAmount(uint256 _amount) public onlyOwner {
+        splitAdminAmount = _amount;
+    }
+
     //Variables de Usuario
     function createNFT(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 uplineNft, uint256 legSide,
       uint256 _nftNumber) public {
@@ -139,11 +161,39 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); // Verifica si el nombre ya existe
         require(USDT.transferFrom(msg.sender, address(this), amount), "USDT transfer failed");
 
+        address selectedSide;
+        if (legSide == 1) {
+            selectedSide = accountInfo[_sponsor].myLeft;
+        } else if (legSide == 2) {
+            selectedSide = accountInfo[_sponsor].myRight;
+        } else {
+            revert("Invalid leg side");
+        }
+
+        if (selectedSide != address(0)) {
+            uint256 nextLevelTokenId = findAvailablePosition(_sponsor, legSide);
+            if (nextLevelTokenId == 0) {
+                revert("No available position found");
+            }
+                _sponsor = nextLevelTokenId;
+        } 
+        else {
+            if (legSide == 1) {
+                accountInfo[_sponsor].myLeft = _user;
+            } else {
+                accountInfo[_sponsor].myRight = _user;
+            }
+        }
+
+        uint256 childrens = accountInfo[_sponsor].childrens;
+        require(childrens < 2, "Max childrens its 2");
+        accountInfo[_sponsor].childrens++;
+
         if(tokenIds != 0){
-            emit RewardFromReferral(_sponsor, (amount * 50) / 100, tokenIds);
-            rewards[_sponsor] += (amount * 50) / 100;
-            emit RewardFromReferralAdmin((amount * 50) / 100, tokenIds);
-            adminWalletsRewards += (amount * 50) / 100;
+            emit RewardFromReferral(_sponsor, (amount * splitAmount) / 100, tokenIds);
+            rewards[_sponsor] += (amount * splitAmount) / 100;
+            emit RewardFromReferralAdmin((amount * splitAdminAmount) / 100, tokenIds);
+            adminWalletsRewards += (amount * splitAdminAmount) / 100;
         }else{
             adminWalletsRewards += amount;
         }
@@ -157,7 +207,8 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         accountInfo[tokenIds].legSide = legSide;
         arrayInfo[_user].push(tokenIds);
 
-        _mint(_user, tokenIds);
+        //_mint(_user, tokenIds);
+        _transfer(address(this), _user, tokenIds);
         selectedImages.push(_nftNumber); // Add selected image to the list
 
         usedName[_nameAccount] = true;
