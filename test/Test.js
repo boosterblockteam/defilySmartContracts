@@ -92,7 +92,19 @@ describe('Prueba MEMBERS general', function () {
 
     async function getInformation() {
       const adminWalletsRewardsInEther = parseFloat(await account.adminWalletsRewards()) / 1e18;
-      console.log("adminWalletsRewards",adminWalletsRewardsInEther)
+      const rewards0 = parseFloat(await account.rewards(0)) / 1e18;
+      const rewards1 = parseFloat(await account.rewards(1)) / 1e18;
+      const rewards2 = parseFloat(await account.rewards(2)) / 1e18;
+      const rewards3 = parseFloat(await account.rewards(3)) / 1e18;
+
+
+
+      console.log("Ganancia a reclamar del admin: ",adminWalletsRewardsInEther)," $"
+      
+      console.log("Ganancia a reclamar del usuario0: ",rewards0)," $"
+      console.log("Ganancia a reclamar del usuario1: ",rewards1)," $"
+      console.log("Ganancia a reclamar del usuario2: ",rewards2)," $"
+      console.log("Ganancia a reclamar del usuario3: ",rewards3)," $"
     }
 
 
@@ -141,13 +153,21 @@ describe('Prueba MEMBERS general', function () {
     
 
 
-    getInformation()
+    await getInformation()
     await account.connect(user1).createNFT("Master Account",user1.address,0,"",1,0); 
-    getInformation()
+    await getInformation()
 
     await account.connect(user2).createNFT("Joaquin Account",user2.address,0,"",1,1); 
+    
+    await getInformation()
+
     await account.connect(user3).createNFT("Irving Account",user3.address,0,"",2,2); 
+    
+    await getInformation()
+
     await account.connect(user4).createNFT("Leadys Account",user4.address,0,"",1,3); 
+
+    await getInformation()
 
     const info0 = await account.accountInfo(0)
     const info1 = await account.accountInfo(1)
