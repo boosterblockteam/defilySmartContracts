@@ -36,7 +36,6 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         string igLink;
         string youtubeLink;
         string yTWelcomeLink;
-      //  string waLink;
         string tikTokLink;
         string wspLink;
         string bio;
@@ -45,7 +44,6 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
 
     mapping(address => PersonalData) public personalDataMap; //Informacion de la persona
     mapping(address => bool) public userRegister;//Verifica si esta registrado
-   // mapping(string => bool) public usedNames; // Almacena nombres usados
     mapping(string => bool) public usedEmails; // Almacena emails usados
     mapping(string => bool) public usedUsernames; // Almacena nombres de usuario usados
     mapping(string => bool) public usedPhoneNumbers; // Almacena números de teléfono usados
@@ -80,15 +78,10 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         string memory _encryptedName,
         string memory _encryptedUsername,
         string memory _encryptedPhoneNumber
-      //  string memory _encryptedCountry,
-      //  string memory _encryptedGender, 
-      //  string memory _encryptedDateOfBirth
     ) public {
         require(!usedEmails[_encryptedEmail], "Email already used");
-      //  require(!usedNames[_encryptedName], "Name already used");
         require(!usedUsernames[_encryptedUsername], "Username already used");
         require(!usedPhoneNumbers[_encryptedPhoneNumber], "Phone number already used");
-
         personalDataMap[msg.sender] = PersonalData({
             encryptedEmail: _encryptedEmail,
             encryptedName: _encryptedName,
@@ -102,14 +95,12 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
             igLink: "",
             youtubeLink: "",
             yTWelcomeLink: "",
-         //   waLink: "",
             tikTokLink: "",
             wspLink: "",
             bio: ""
         });
 
         usedEmails[_encryptedEmail] = true;
-       // usedNames[_encryptedName] = true;
         usedUsernames[_encryptedUsername] = true;
         usedPhoneNumbers[_encryptedPhoneNumber] = true;
         userRegister[msg.sender] = true;
@@ -128,7 +119,6 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         string memory _encryptedIgLink,
         string memory _encryptedYoutubeLink,
         string memory _yTWelcomeLink,
-      //  string memory _waLink,
         string memory _encryptedTikTokLink,
         string memory _encryptedWspLink,
         string memory _encryptedBio
@@ -142,12 +132,6 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
             usedEmails[personalDataMap[msg.sender].encryptedEmail] = false;
         }
         
-       /* if (keccak256(bytes(_encryptedName)) != keccak256(bytes(personalDataMap[msg.sender].encryptedName))) {
-            require(!usedNames[_encryptedName], "Name already used");
-            usedNames[_encryptedName] = true;
-            usedNames[personalDataMap[msg.sender].encryptedName] = false;
-        }*/
-
         if (keccak256(bytes(_encryptedPhoneNumber)) != keccak256(bytes(personalDataMap[msg.sender].encryptedPhoneNumber))) {
             require(!usedPhoneNumbers[_encryptedPhoneNumber], "Phone number already used");
             usedPhoneNumbers[_encryptedPhoneNumber] = true;
@@ -165,7 +149,6 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         personalDataMap[msg.sender].igLink = _encryptedIgLink;
         personalDataMap[msg.sender].youtubeLink = _encryptedYoutubeLink;
         personalDataMap[msg.sender].yTWelcomeLink = _yTWelcomeLink;
-       // personalDataMap[msg.sender].waLink = _waLink;
         personalDataMap[msg.sender].tikTokLink = _encryptedTikTokLink;
         personalDataMap[msg.sender].wspLink = _encryptedWspLink;
         personalDataMap[msg.sender].bio = _encryptedBio;

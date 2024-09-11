@@ -75,7 +75,7 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
     mapping(uint256 => uint256) public directs;
     mapping(uint256 => uint256) public rank;
 
-    function initialize(address _usdtAddress, address _poiAddress,address _accountContract,address _stakingAddress, address _accountAddress) public initializer {
+    function initialize(address _usdtAddress, address _poiAddress,address _stakingAddress, address _accountAddress) public initializer {
             __AccessControl_init();
             __Ownable_init(msg.sender);
             __UUPSUpgradeable_init();
@@ -83,7 +83,7 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
 
             USDT = IERC20(_usdtAddress);
             poiContract = POI(_poiAddress);
-            accountContract = NFTAccount(_accountContract);
+            accountContract = NFTAccount(_accountAddress);
             stakingAddress = _stakingAddress;
             accountAddress = _accountAddress;
             setSplitAdminAmount(80);
