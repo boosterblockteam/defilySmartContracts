@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./Members.sol";
 import "./Poi.sol";
 import "hardhat/console.sol";
+
+
 contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
     POI public poi;
     MembershipContract public membershipContract;
@@ -71,6 +73,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         uint256 rank;
         uint256 totalDirect;
         uint256 totalGlobal;
+        bool nextLegIsLeft;
     }
 
 
@@ -156,11 +159,26 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
     //Variables de Usuario
     function createNFT(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public {
+        if(arrayInfo[_user].length != 0){
+            require(_sponsor == arrayInfo[_user][0], "El sponsor debe ser igual a tu primer cuenta");
+        }
         require(poi.userRegister(_user), "Debe estar registrado en el POI");
         require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); // Verifica si el nombre ya existe
         require(USDT.transferFrom(msg.sender, address(this), amount), "USDT transfer failed");
+        if(tokenIds != 0){
+            require(ownerOf(_sponsor) != address(this), "Debe tener dueno");
+        }
+        //REVISAR EL TEMA DE tokenIds y _nftNumber
 
-
+        if (legSide == 3) {
+            // Alterna entre izquierda y derecha basado en nextLegIsLeft
+            if (accountInfo[_sponsor].nextLegIsLeft) {
+                legSide = 2; // Derecha
+            } else {
+                legSide = 1; // Izquierda
+            }
+            accountInfo[_sponsor].nextLegIsLeft = !accountInfo[_sponsor].nextLegIsLeft; // Alterna el estado
+        }
 
         if(tokenIds != 0){
             uint256 uplineNFT = _sponsor;
@@ -172,10 +190,8 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             } else {
                 revert("Invalid leg side");
             }
-
             if (selectedSide != 0) {
-                uint256 nextLevelTokenId = findAvailablePosition(_sponsor, legSide, tokenIds);
-                console.log("nextLevelTokenId",nextLevelTokenId);
+                uint256 nextLevelTokenId = findAvailablePosition(_sponsor, legSide, _nftNumber);
                 if (nextLevelTokenId == 0) {
                     revert("No available position found");
                 }
@@ -194,43 +210,42 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             accountInfo[uplineNFT].childrens++;
 
 
-            emit RewardFromReferral(_sponsor, (amount * splitAmount) / 100, tokenIds);
+            emit RewardFromReferral(_sponsor, (amount * splitAmount) / 100, _nftNumber);
             rewards[_sponsor] += (amount * splitAmount) / 100;
-            emit RewardFromReferralAdmin((amount * splitAdminAmount) / 100, tokenIds);
+            emit RewardFromReferralAdmin((amount * splitAdminAmount) / 100, _nftNumber);
             adminWalletsRewards += (amount * splitAdminAmount) / 100;
 
-            accountInfo[tokenIds].NFTID = tokenIds;
-            accountInfo[tokenIds].NFTName = _nameAccount;
-            accountInfo[tokenIds].sponsorNFT = _sponsor;
-            accountInfo[tokenIds].creationData = block.timestamp;
-            accountInfo[tokenIds].NFTCid = NFTCid;
-            accountInfo[tokenIds].uplineNft = uplineNFT;
-            accountInfo[tokenIds].legSide = legSide;
-            arrayInfo[_user].push(tokenIds);
+            accountInfo[_nftNumber].NFTID = _nftNumber;
+            accountInfo[_nftNumber].NFTName = _nameAccount;
+            accountInfo[_nftNumber].sponsorNFT = _sponsor;
+            accountInfo[_nftNumber].creationData = block.timestamp;
+            accountInfo[_nftNumber].NFTCid = NFTCid;
+            accountInfo[_nftNumber].uplineNft = uplineNFT;
+            accountInfo[_nftNumber].legSide = legSide;
+            arrayInfo[_user].push(_nftNumber);
 
         }else{
             adminWalletsRewards += amount;
 
-
-            accountInfo[tokenIds].NFTID = tokenIds;
-            accountInfo[tokenIds].NFTName = _nameAccount;
-            accountInfo[tokenIds].sponsorNFT = _sponsor;
-            accountInfo[tokenIds].creationData = block.timestamp;
-            accountInfo[tokenIds].NFTCid = NFTCid;
-            accountInfo[tokenIds].uplineNft = 0;
-            accountInfo[tokenIds].legSide = legSide;
-            arrayInfo[_user].push(tokenIds);
+            accountInfo[_nftNumber].NFTID = _nftNumber;
+            accountInfo[_nftNumber].NFTName = _nameAccount;
+            accountInfo[_nftNumber].sponsorNFT = _sponsor;
+            accountInfo[_nftNumber].creationData = block.timestamp;
+            accountInfo[_nftNumber].NFTCid = NFTCid;
+            accountInfo[_nftNumber].uplineNft = 0;
+            accountInfo[_nftNumber].legSide = 0;
+            arrayInfo[_user].push(_nftNumber);
         }
 
         //_mint(_user, tokenIds);
-        _transfer(address(this), _user, tokenIds);
+        _transfer(address(this), _user, _nftNumber);
         selectedImages.push(_nftNumber); // Add selected image to the list
 
         usedName[_nameAccount] = true;
 
-        nftImage[tokenIds] = _nftNumber;           
+        nftImage[_nftNumber] = _nftNumber;           
 
-        emit AccountCreated(tokenIds, _nameAccount, _user, _sponsor, _nftNumber);
+        emit AccountCreated(_nftNumber, _nameAccount, _user, _sponsor, _nftNumber);
 
         tokenIds++;
 
@@ -239,16 +254,14 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     function findAvailablePosition(uint256 _sponsor, uint256 _legSide, uint256 _newTokenId) internal  returns (uint256) {
         // Verifica si el patrocinador tiene el lado izquierdo o derecho vacío
         if (_legSide == 1) {
-            console.log("Entra al lado izquierdo");
             // Si el lado izquierdo está vacío, devuelve el ID del patrocinador
             if (accountInfo[_sponsor].myLeft == 0) {
-                console.log("Esta vacio");
                 accountInfo[_sponsor].myLeft = _newTokenId;
                 return _sponsor;
             } else {
-                console.log("Sigue buscando");
                 // Busca una posición disponible en el lado izquierdo
                 return findAvailablePositionInTree(accountInfo[_sponsor].myLeft, _newTokenId, _legSide);
+               
             }
         } else if (_legSide == 2) {
             // Si el lado derecho está vacío, devuelve el ID del patrocinador
@@ -262,6 +275,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         } else {
             revert("Invalid leg side");
         }
+
     }
 
     function findAvailablePositionInTree(uint256 _rootTokenId, uint256 _newTokenId, uint256 _legSide) internal  returns (uint256) {
@@ -271,11 +285,13 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
                 accountInfo[_rootTokenId].myLeft = _newTokenId;
                 return _rootTokenId;
             } else {
+               // uint256 leftPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myLeft,_newTokenId, _legSide);
+                //if (leftPosition != 0) {
+                   // accountInfo[_rootTokenId].myLeft = _newTokenId;
+                   // return leftPosition;
+               // }
                 uint256 leftPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myLeft,_newTokenId, _legSide);
-                if (leftPosition != 0) {
-                    accountInfo[_rootTokenId].myLeft = _newTokenId;
-                    return leftPosition;
-                }
+                return leftPosition;
             }
        }
         if (_legSide == 2) {
@@ -283,11 +299,13 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
                 accountInfo[_rootTokenId].myRight = _newTokenId;
                 return _rootTokenId;
             } else {
+                //uint256 rightPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myRight, _newTokenId, _legSide);
+                //if (rightPosition != 0) {
+                 //   accountInfo[_rootTokenId].myRight = _newTokenId;
+                //    return rightPosition;
+                //}
                 uint256 rightPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myRight, _newTokenId, _legSide);
-                if (rightPosition != 0) {
-                    accountInfo[_rootTokenId].myRight = _newTokenId;
-                    return rightPosition;
-                }
+                return rightPosition;
             }
         }
     }

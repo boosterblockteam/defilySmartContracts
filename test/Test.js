@@ -69,7 +69,7 @@ beforeEach(async () => {
   membershipContract3 = await MembershipContract3.deploy();
 
   // Asignar los signers a las variables
-   [owner, user1, user2, user3, user4, user5, ...restHardhatSigners] = await ethers.getSigners();
+   [owner, user1, user2, user3, user4, user5, user6, user7, user8, user9, user10] = await ethers.getSigners();
 
 });
 
@@ -82,11 +82,12 @@ describe('Prueba MEMBERS general', function () {
     //Funcion para inicializar
     async function initializeUsers(users, token, poiAddress, membersAddress) {
       for (const user of users) {
-        console.log("Todo bien")
-        await token.connect(user).approve(poiAddress, ethers.parseEther("100000000"));
-        await token.connect(user).approve(account, ethers.parseEther("100000000"));
-        await token.connect(user).approve(membersAddress, ethers.parseEther("100000000"));
-        await token.transfer(user.address, ethers.parseEther("10000")); 
+        console.log("DIRECCION")
+        console.log(await membersAddress)
+        await token.connect(user).approve(poiAddress, ethers.parseEther("10000000000"));
+        await token.connect(user).approve(account, ethers.parseEther("10000000000"));
+        await token.connect(user).approve(membershipContract3, ethers.parseEther("10000000000"));
+        await token.transfer(user.address, ethers.parseEther("1000")); 
       }
     }
 
@@ -105,6 +106,7 @@ describe('Prueba MEMBERS general', function () {
       console.log("Ganancia a reclamar del usuario1: ",rewards1)," $"
       console.log("Ganancia a reclamar del usuario2: ",rewards2)," $"
       console.log("Ganancia a reclamar del usuario3: ",rewards3)," $"
+      console.log("///////////////")
     }
 
 
@@ -118,11 +120,11 @@ describe('Prueba MEMBERS general', function () {
     //Inicializacion
     console.log("Se inicializan los contratos poniendo e POI 30usd como valor y poniendo a user9 en members como defily wallet (Para el sobrante) y en claim lo mismo (Por si la membresia tiene fee)")
     await poi.initialize(accountAddress,membersAddress);
-    console.log("a")
     await account.initialize(tokenAddress,poiAddress,membersAddress,"0x0000000000000000000000000000000000000000",ethers.parseEther('30'));
-    console.log("b")
-    await membershipContract3.initialize(tokenAddress,poiAddress,accountAddress,"0x0000000000000000000000000000000000000000",accountAddress);
-
+    await membershipContract3.initialize(tokenAddress,poiAddress,"0x0000000000000000000000000000000000000000",accountAddress);
+    
+    await account.setAdminWallet(user10.address);
+    await membershipContract3.setPartnerShip(user10.address);
 
     //Se crean 5 membresias 
     console.log("Se crean 5 membresias la primera vale 0 pero tiene 10% de comision, las demas valen de a 1.000 la primera 1.000 la segunda 2.000  y asi...")
@@ -139,8 +141,8 @@ describe('Prueba MEMBERS general', function () {
 
 
     console.log("Se generan 5 wallets (User2,User3,User4,User5,User6) con la cantidad de usd para luego de comprar se queden en 0 y todos los contratos aprobados.")
-    const users = [user1,user2, user3, user4, user5];
-    console.log("a")
+    const users = [user1,user2, user3, user4, user5, user6, user7];
+   
     await initializeUsers(users, token,accountAddress, poiAddress, membersAddress);
 
     console.log("Se registra User1 en el Poi")
@@ -148,44 +150,263 @@ describe('Prueba MEMBERS general', function () {
     await poi.connect(user2).newUser("joacolinares2003@gmail.com","Joaquin Linares","Joaco123","1234");
     await poi.connect(user3).newUser("Irving@gmail.com","Irving Lopez","Irving123","12345");
     await poi.connect(user4).newUser("Leadys@gmail.com","Leadys Perez","Leadys123","123456");
+    await poi.connect(user5).newUser("Jesica@gmail.com","Jesica test","Jesi123","1234567");
+    await poi.connect(user6).newUser("Antonio@gmail.com","Antonio test","Antonio123","12345678");
     console.log("User1 compra membresia 1 refiriendo a si mismo")
     console.log("Compra")
     
 
 
-    await getInformation()
-    await account.connect(user1).createNFT("Master Account",user1.address,0,"",1,0); 
-    await getInformation()
+    console.log("Usuario 1 con 1000usd compra cuenta, refiriendo al ID 0 para iniciar el proyecto (Aca se reparte todo al admin ya que no hay sponsor)")
+    await account.connect(user1).createNFT("Master Account",user1.address,0,"",1,0);  
 
-    await account.connect(user2).createNFT("Joaquin Account",user2.address,0,"",1,1); 
+    console.log("Usuario 2 con 1000usd compra cuenta con ID 15, con sponsor al ID 0 (Usuario 1) el lado izquierdo")
+    await account.connect(user2).createNFT("Joaquin Account",user2.address,0,"",1,15); 
     
-    await getInformation()
-
-    await account.connect(user3).createNFT("Irving Account",user3.address,0,"",2,2); 
+    console.log("Usuario 3 con 1000usd compra cuenta con ID 20, con sponsor al ID 0 (Usuario 1) el lado derecho")
+    await account.connect(user3).createNFT("Irving Account",user3.address,0,"",2,20); 
     
-    await getInformation()
+    console.log("Usuario 4 con 1000usd compra cuenta con ID 500, con sponsor al ID 0 (Usuario 1) el lado izquierdo")
+    await account.connect(user4).createNFT("Leadys Account",user4.address,0,"",1,500); 
 
-    await account.connect(user4).createNFT("Leadys Account",user4.address,0,"",1,3); 
+    console.log("Usuario 5 con 1000usd compra cuenta con ID 144, con sponsor al ID 15 (Usuario 2) el lado alternante(izquierdo)")
+    await account.connect(user5).createNFT("Jesica Account",user5.address,15,"",3,144); 
 
-    await getInformation()
+    console.log("Usuario 6 con 1000usd compra cuenta con ID 452, con sponsor al ID 15 (Usuario 2) el lado alternante(derecho)")
+    await account.connect(user6).createNFT("Anotnio Account",user6.address,15,"",3,452); 
 
-    const info0 = await account.accountInfo(0)
-    const info1 = await account.accountInfo(1)
-    const info2 = await account.accountInfo(2)
+    console.log("Usuario 4 con 970usd compra cuenta con ID 600, con sponsor al ID 500 (Usuario 4) el lado alternante(izquierdo)")
+    await account.connect(user4).createNFT("Anotnio Account2",user4.address,500,"",3,600); 
 
-    console.log(info0.myLeft)
-    console.log(info0.myRight)
+    console.log("Usuario 4 con 940usd compra cuenta con ID 601, con sponsor al ID 500 (Usuario 4) el lado alternante(derecha)")
+    await account.connect(user4).createNFT("Anotnio Account3",user4.address,500,"",3,601); 
+
+    console.log("Usuario 4 con 910usd compra cuenta con ID 602, con sponsor al ID 500 (Usuario 4) el lado alternante(izquierda)")
+    await account.connect(user4).createNFT("Anotnio Account4",user4.address,500,"",3,602); 
+
+    console.log("Usuario 4 con 880usd compra cuenta con ID 603, con sponsor al ID 500 (Usuario 4) el lado alternante(derecha)")
+    await account.connect(user4).createNFT("Anotnio Account5",user4.address,500,"",3,603); 
+
+    console.log("Usuario 5 con 970usd compra cuenta con ID 800, con sponsor al ID 144 (Usuario 5) el lado derecho")
+    await account.connect(user5).createNFT("Jesica Account 2",user5.address,144,"",2,800); 
+
+    console.log("Usuario 5 con 940usd compra cuenta con ID 801, con sponsor al ID 144 (Usuario 5) el lado derecho")
+    await account.connect(user5).createNFT("Jesica Account 3",user5.address,144,"",2,801); 
+
+    console.log("Usuario 5 con 910usd compra cuenta con ID 802, con sponsor al ID 144 (Usuario 5) el lado derecho")
+    await account.connect(user5).createNFT("Jesica Account 4",user5.address,144,"",2,802); 
+
+    // await getInformation()
+
+    const Cuenta0 = await account.accountInfo(0)
+    const Cuenta15 = await account.accountInfo(15)
+    const Cuenta20 = await account.accountInfo(20)
+    const Cuenta500 = await account.accountInfo(500)
+    const Cuenta144 = await account.accountInfo(144)
+    const Cuenta452 = await account.accountInfo(452)
+    const Cuenta600 = await account.accountInfo(600)
+    const Cuenta601 = await account.accountInfo(601)
+    const Cuenta602 = await account.accountInfo(602)
+    const Cuenta603 = await account.accountInfo(603)
+    const Cuenta800 = await account.accountInfo(800)
+    const Cuenta801 = await account.accountInfo(801)
+    const Cuenta802 = await account.accountInfo(802)
+
+
+    const adminWalletsRewardsInEther = parseFloat(await account.adminWalletsRewards()) / 1e18;
+    const rewardsCuenta0 = parseFloat(await account.rewards(0)) / 1e18;
+    const rewardsCuenta15 = parseFloat(await account.rewards(15)) / 1e18;
+    const rewardsCuenta20 = parseFloat(await account.rewards(20)) / 1e18;
+    const rewardsCuenta500 = parseFloat(await account.rewards(500)) / 1e18;
+    const rewardsCuenta144 = parseFloat(await account.rewards(144)) / 1e18;
+    const rewardsCuenta452 = parseFloat(await account.rewards(452)) / 1e18;
+    const rewardsCuenta600 = parseFloat(await account.rewards(600)) / 1e18;
+    const rewardsCuenta601 = parseFloat(await account.rewards(601)) / 1e18;
+    const rewardsCuenta602 = parseFloat(await account.rewards(602)) / 1e18;
+    const rewardsCuenta603 = parseFloat(await account.rewards(603)) / 1e18;
+    const rewardsCuenta800 = parseFloat(await account.rewards(800)) / 1e18;
+    const rewardsCuenta801 = parseFloat(await account.rewards(801)) / 1e18;
+    const rewardsCuenta802 = parseFloat(await account.rewards(802)) / 1e18;
+
+    console.log("ARBOL DE USUARIOS")
+    console.log("Hijo izquierdo de Cuenta 0: ",Cuenta0.myLeft)
+    console.log("Hijo derecho de Cuenta 0: ",Cuenta0.myRight)
     console.log("///")
-    console.log(info1.myLeft)
-    console.log(info1.myRight)
+    console.log("Hijo izquierdo de Cuenta 15: ",Cuenta15.myLeft)
+    console.log("Hijo derecho de Cuenta 15: ",Cuenta15.myRight)
     console.log("///")
-    console.log(info2.myLeft)
-    console.log(info2.myRight)
+    console.log("Hijo izquierdo de Cuenta 20: ",Cuenta20.myLeft)
+    console.log("Hijo derecho de Cuenta 20: ",Cuenta20.myRight)
     console.log("///")
+    console.log("Hijo izquierdo de Cuenta 500: ",Cuenta500.myLeft)
+    console.log("Hijo derecho de Cuenta 500: ",Cuenta500.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 144: ",Cuenta144.myLeft)
+    console.log("Hijo derecho de Cuenta 144: ",Cuenta144.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 452: ",Cuenta452.myLeft)
+    console.log("Hijo derecho de Cuenta 452: ",Cuenta452.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 600: ",Cuenta600.myLeft)
+    console.log("Hijo derecho de Cuenta 600: ",Cuenta600.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 601: ",Cuenta601.myLeft)
+    console.log("Hijo derecho de Cuenta 601: ",Cuenta601.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 602: ",Cuenta602.myLeft)
+    console.log("Hijo derecho de Cuenta 602: ",Cuenta602.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 603: ",Cuenta603.myLeft)
+    console.log("Hijo derecho de Cuenta 603: ",Cuenta603.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 800: ",Cuenta800.myLeft)
+    console.log("Hijo derecho de Cuenta 800: ",Cuenta800.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 801: ",Cuenta801.myLeft)
+    console.log("Hijo derecho de Cuenta 801: ",Cuenta801.myRight)
+    console.log("///")
+    console.log("Hijo izquierdo de Cuenta 802: ",Cuenta802.myLeft)
+    console.log("Hijo derecho de Cuenta 802: ",Cuenta802.myRight)
 
-    //await membershipContract3.connect(user1).buyMembership(1, 0, 0, user1.address, ""); 
+    console.log("//////////////////////")
+    console.log("GANANCIAS A RECLAMAR")
+    console.log("Ganancia a reclamar del admin: ",adminWalletsRewardsInEther)," $"
     
- 
+    console.log("Ganancia a reclamar de la Cuenta 0: ",rewardsCuenta0)," $"
+    console.log("Ganancia a reclamar del Cuenta 15: ",rewardsCuenta15)," $"
+    console.log("Ganancia a reclamar del Cuenta 20: ",rewardsCuenta20)," $"
+    console.log("Ganancia a reclamar del Cuenta 500: ",rewardsCuenta500)," $"
+    console.log("Ganancia a reclamar del Cuenta 144: ",rewardsCuenta144)," $"
+    console.log("Ganancia a reclamar del Cuenta 452: ",rewardsCuenta452)," $"
+    console.log("Ganancia a reclamar del Cuenta 600: ",rewardsCuenta600)," $"
+    console.log("Ganancia a reclamar del Cuenta 601: ",rewardsCuenta601)," $"
+    console.log("Ganancia a reclamar del Cuenta 602: ",rewardsCuenta602)," $"
+    console.log("Ganancia a reclamar del Cuenta 603: ",rewardsCuenta603)," $"
+    console.log("Ganancia a reclamar del Cuenta 800: ",rewardsCuenta800)," $"
+    console.log("Ganancia a reclamar del Cuenta 801: ",rewardsCuenta801)," $"
+    console.log("Ganancia a reclamar del Cuenta 802: ",rewardsCuenta802)," $"
+
+    console.log("//////////////////////")
+    console.log("BALANCES")
+
+    console.log("Balance Admin : ", parseFloat(await token.balanceOf(user10.address)) / 1e18)
+    console.log("Balance Usuario 1: ", parseFloat(await token.balanceOf(user1.address)) / 1e18)
+    console.log("Balance Usuario 2: ", parseFloat(await token.balanceOf(user2.address)) / 1e18)
+    console.log("Balance Usuario 3: ", parseFloat(await token.balanceOf(user3.address)) / 1e18)
+    console.log("Balance Usuario 4: ", parseFloat(await token.balanceOf(user4.address)) / 1e18)
+    console.log("Balance Usuario 5: ", parseFloat(await token.balanceOf(user5.address)) / 1e18)
+    console.log("Balance Usuario 6: ", parseFloat(await token.balanceOf(user6.address)) / 1e18)
+
+
+    console.log("El admin reclama ganancias")
+    await account.connect(user10).claimAdminWallet();
+    
+    console.log("Todas las cuentas reclman ganancias")
+    await account.connect(user1).claimNftReward(0);
+    await account.connect(user2).claimNftReward(15);
+    await account.connect(user3).claimNftReward(20);
+    await account.connect(user4).claimNftReward(500);
+    await account.connect(user5).claimNftReward(144);
+    await account.connect(user6).claimNftReward(452);
+    await account.connect(user4).claimNftReward(600);
+    await account.connect(user4).claimNftReward(601);
+    await account.connect(user4).claimNftReward(602);
+    await account.connect(user4).claimNftReward(603);
+    await account.connect(user5).claimNftReward(800);
+    await account.connect(user5).claimNftReward(801);
+    await account.connect(user5).claimNftReward(802);
+
+    console.log("Balance Admin : ", parseFloat(await token.balanceOf(user10.address)) / 1e18)
+    console.log("Balance Usuario 1: ", parseFloat(await token.balanceOf(user1.address)) / 1e18)
+    console.log("Balance Usuario 2: ", parseFloat(await token.balanceOf(user2.address)) / 1e18)
+    console.log("Balance Usuario 3: ", parseFloat(await token.balanceOf(user3.address)) / 1e18)
+    console.log("Balance Usuario 4: ", parseFloat(await token.balanceOf(user4.address)) / 1e18)
+    console.log("Balance Usuario 5: ", parseFloat(await token.balanceOf(user5.address)) / 1e18)
+    console.log("Balance Usuario 6: ", parseFloat(await token.balanceOf(user6.address)) / 1e18)
+
+
+
+    console.log("CUENTAS TODO BIEN")
+
+    console.log("Usuario 1 con 1010usd compra membresia Basic, refiriendo al ID 0 para iniciar el proyecto (Aca se reparte todo al admin ya que no hay sponsor)")
+    await membershipContract3.connect(user1).buyMembership(3, 0, ""); 
+
+    console.log("Usuario 2 con 1000usd con cuenta ID15 compra membresia Basic, con sponsor al ID 0 (Usuario 1)")
+    await membershipContract3.connect(user2).buyMembership(3, 15, ""); 
+
+    console.log("Usuario 3 con 970usd con cuenta ID20 compra membresia Basic, con sponsor al ID 0 (Usuario 1)")
+    await membershipContract3.connect(user3).buyMembership(3, 20, ""); 
+
+    console.log("Usuario 5 con 880usd con cuenta ID144 compra membresia Basic, con sponsor al ID 15 (Usuario 2)")
+    await membershipContract3.connect(user5).buyMembership(3, 144, ""); 
+
+    console.log("Usuario 5 con 880usd con cuenta ID800 compra membresia Basic, con sponsor al ID 144 (Usuario 5)")
+    await membershipContract3.connect(user5).buyMembership(3, 800, ""); 
+
+    console.log("Usuario 6 con 970usd con cuenta ID452 compra membresia Basic, con sponsor al ID 15 (Usuario 2)")
+    await membershipContract3.connect(user6).buyMembership(3, 452, ""); 
+
+    console.log("Usuario 4 con 955usd con cuenta ID500 compra membresia Basic, con sponsor al ID 0 (Usuario 1)")
+    await membershipContract3.connect(user4).buyMembership(3, 500, ""); 
+
+    console.log("Usuario 4 con 955usd con cuenta ID601 compra membresia Basic, con sponsor al ID 500 (Usuario 4)")
+    await membershipContract3.connect(user4).buyMembership(3, 601, ""); 
+
+    console.log("Usuario 1 con 975usd con cuenta ID0 compra membresia Basic, con sponsor al ID 0 (Usuario 1)")
+    await membershipContract3.connect(user1).buyMembership(3, 0, ""); 
+
+    console.log("//////////////////////")
+    console.log("BALANCES")
+
+    console.log("Balance Admin : ", parseFloat(await token.balanceOf(user10.address)) / 1e18)
+    console.log("Balance Usuario 1: ", parseFloat(await token.balanceOf(user1.address)) / 1e18)
+    console.log("Balance Usuario 2: ", parseFloat(await token.balanceOf(user2.address)) / 1e18)
+    console.log("Balance Usuario 3: ", parseFloat(await token.balanceOf(user3.address)) / 1e18)
+    console.log("Balance Usuario 4: ", parseFloat(await token.balanceOf(user4.address)) / 1e18)
+    console.log("Balance Usuario 5: ", parseFloat(await token.balanceOf(user5.address)) / 1e18)
+    console.log("Balance Usuario 6: ", parseFloat(await token.balanceOf(user6.address)) / 1e18)
+
+    console.log("//////////////////////")
+    console.log("RECLAMOS")
+    console.log("El admin reclama ganancias")
+    await membershipContract3.connect(user10).claimRewardPartnerShip();
+    
+    console.log("Todas las cuentas reclman ganancias")
+    await membershipContract3.connect(user1).claimMembershipReward(0);
+    await membershipContract3.connect(user2).claimMembershipReward(15);
+    await membershipContract3.connect(user3).claimMembershipReward(20);
+    await membershipContract3.connect(user4).claimMembershipReward(500);
+    await membershipContract3.connect(user5).claimMembershipReward(144);
+    await membershipContract3.connect(user6).claimMembershipReward(452);
+    await membershipContract3.connect(user4).claimMembershipReward(600);
+    await membershipContract3.connect(user4).claimMembershipReward(601);
+    await membershipContract3.connect(user4).claimMembershipReward(602);
+    await membershipContract3.connect(user4).claimMembershipReward(603);
+    await membershipContract3.connect(user5).claimMembershipReward(800);
+    await membershipContract3.connect(user5).claimMembershipReward(801);
+    await membershipContract3.connect(user5).claimMembershipReward(802);
+
+    console.log("//////////////////////")
+    console.log("BALANCES")
+
+    console.log("Balance Admin : ", parseFloat(await token.balanceOf(user10.address)) / 1e18)
+    console.log("Balance Usuario 1: ", parseFloat(await token.balanceOf(user1.address)) / 1e18)
+    console.log("Balance Usuario 2: ", parseFloat(await token.balanceOf(user2.address)) / 1e18)
+    console.log("Balance Usuario 3: ", parseFloat(await token.balanceOf(user3.address)) / 1e18)
+    console.log("Balance Usuario 4: ", parseFloat(await token.balanceOf(user4.address)) / 1e18)
+    console.log("Balance Usuario 5: ", parseFloat(await token.balanceOf(user5.address)) / 1e18)
+    console.log("Balance Usuario 6: ", parseFloat(await token.balanceOf(user6.address)) / 1e18)
+
+
+    console.log("Primera membresia de Cuenta 0 ", await membershipContract3.getInfoOfMembership(0,0))
+    console.log("Segunda membresia de Cuenta 0 ", await membershipContract3.getInfoOfMembership(0,1))
+    console.log("Primera membresia de Cuenta 15 ", await membershipContract3.getInfoOfMembership(15,0))
+    console.log("Primera membresia de Cuenta 20 ", await membershipContract3.getInfoOfMembership(20,0))
+    console.log("Primera membresia de Cuenta 800 ", await membershipContract3.getInfoOfMembership(800,0))
+    console.log("Primera membresia de Cuenta 452 ", await membershipContract3.getInfoOfMembership(452,0))
+    console.log("Primera membresia de Cuenta 601 ", await membershipContract3.getInfoOfMembership(601,0))
+
+
 
   });
 });
