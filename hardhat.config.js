@@ -16,9 +16,9 @@ module.exports = {
     polygon: {
       url: "https://polygon-rpc.com/",
       chainId: 137,
-      accounts: ["2da37782f9ecde83274cdbb940284ba0906d447534b956247c5a4f378ba3f64e"], // AsegÃºrate de definir la PRIVATE_KEY en tu .env
-      gas: 60 * 10**9, // LÃ­mite de gas
-      gasPrice: 60 * 10**9 // Precio del gas en gwei (5 gwei)
+      accounts: ["305d0e9615b9db2f0e4dc362999cdea6da52d2969db58ae9fd2894b28135c2a0"], // AsegÃºrate de definir la PRIVATE_KEY en tu .env
+      gas: 100 * 10**9, // LÃ­mite de gas
+      gasPrice: 100 * 10**9 // Precio del gas en gwei (5 gwei)
     },
     bsc: {
       url: "https://bsc-dataseed.binance.org/",
@@ -28,8 +28,8 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-   //   polygon: 'AC6KPPI6MACGFDUUD6XT2V2VUPVNVKC7ZQ' ACTIVAR PARA BOOSTER
-      bsc: 'AABG8TZX1JPB9JJMFFPF42IBYSC6PI1ED8'
+      polygon: 'AC6KPPI6MACGFDUUD6XT2V2VUPVNVKC7ZQ' 
+      //bsc: 'AABG8TZX1JPB9JJMFFPF42IBYSC6PI1ED8'
     }
   }
 };

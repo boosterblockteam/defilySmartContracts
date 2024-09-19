@@ -14,7 +14,10 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     POI public poi;
     MembershipContract public membershipContract;
     IERC20 public USDT;
+    using Strings for uint256;
 
+    string public uriPrefix;
+    string public uriSuffix;
     address public stakingAddress;
     address public rankAddress;
     address public membershipContractAddress;
@@ -87,7 +90,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
 
     function initialize(address _usdtAddress, address _poiContractAddress, address _memberContract, address _stakingAddress, uint256 _amount) public initializer { 
-        __ERC721_init("Defily NFT", "DLUN"); 
+        __ERC721_init("TEST Defily NFT", "TD"); 
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         USDT = IERC20(_usdtAddress);
@@ -96,6 +99,10 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         membershipContractAddress = _memberContract;
         stakingAddress = _stakingAddress;
         amount = _amount;
+
+        uriPrefix = "https://amaranth-intelligent-hamster-729.mypinata.cloud/ipfs/QmVn3jRPCnjzhGnm2u5p21jR2F3HJGSsNvefbLVLxLTByy/";
+        uriSuffix = ".json";
+
         setSplitAdminAmount(50);
         setSplitAmount(50);
 
@@ -105,12 +112,14 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
           // selectedImages.push(i); // Add each minted NFT index to the selectedImages array
           //  tokenIds++;
         }
+
+
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     //Variables de admin
-    function setUsdtConract(address _usdtAddress) public onlyOwner { 
+    function setUsdtContract(address _usdtAddress) public onlyOwner { 
         USDT = IERC20(_usdtAddress);
     }
 
@@ -155,6 +164,14 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
     function setSplitAdminAmount(uint256 _amount) public onlyOwner {
         splitAdminAmount = _amount;
+    }
+
+    function setUriPrefix(string memory _uriPrefix) public onlyOwner {
+        uriPrefix = _uriPrefix;
+    }
+
+    function setUriSuffix(string memory _uriSuffix) public onlyOwner {
+        uriSuffix = _uriSuffix;
     }
 
     //Variables de Usuario
@@ -545,4 +562,22 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     function getSelectedImages() public view returns (uint256[] memory) {
         return selectedImages;
     }
+
+    function tokenURI(uint256 _tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        string memory currentBaseURI = _baseURI();
+        return bytes(currentBaseURI).length > 0
+            ? string(abi.encodePacked(currentBaseURI, _tokenId.toString(), uriSuffix))
+            : "";
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return uriPrefix;
+    } 
+
 }

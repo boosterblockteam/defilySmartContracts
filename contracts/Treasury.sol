@@ -27,7 +27,7 @@ struct Order {
     uint8 closeReason;
 }
 
-contract TreasuryV2 is Initializable, AccessControlUpgradeable, UUPSUpgradeable, OwnableUpgradeable { //SE AGREGO  UUPSUpgradeable, OwnableUpgradeable
+contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, OwnableUpgradeable { //SE AGREGO  UUPSUpgradeable, OwnableUpgradeable
     using SafeERC20 for IERC20;
 
     event OrderOpened(
