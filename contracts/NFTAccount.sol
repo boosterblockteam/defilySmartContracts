@@ -499,6 +499,9 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         return accountInfo[_tokenId].totalGlobal;
     }
 
+    function getMemberships(uint256 accountId) public view returns (uint256[] memory) {
+        return accountInfo[accountId].membership;
+    }
 
     function getDirectVolCount(uint256 _tokenId) public view returns (uint256) {
         return accountInfo[_tokenId].directVol.length;

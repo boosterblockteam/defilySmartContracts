@@ -155,6 +155,11 @@ describe('Prueba MEMBERS general', function () {
     console.log("User1 compra membresia 1 refiriendo a si mismo")
     console.log("Compra")
     
+    console.log("ADMIN")
+    console.log("Admin le crea usuario a usuario 7")
+    await poi.createNewUser(user7.address, "pepe@gmail.com","Pepe Perez","Pepe123","123456789");
+    console.log("Admin le crea cuenta a usuario 7")
+    await account.createNFTAdmin("Pepe Account",user7.address,0,"",2,1001); 
 
 
     console.log("Usuario 1 con 1000usd compra cuenta, refiriendo al ID 0 para iniciar el proyecto (Aca se reparte todo al admin ya que no hay sponsor)")
@@ -195,6 +200,9 @@ describe('Prueba MEMBERS general', function () {
 
     console.log("Usuario 5 con 910usd compra cuenta con ID 802, con sponsor al ID 144 (Usuario 5) el lado derecho")
     await account.connect(user5).createNFT("Jesica Account 4",user5.address,144,"",2,802); 
+
+
+
 
     // await getInformation()
 

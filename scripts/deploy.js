@@ -5,8 +5,8 @@ const wait = (ms) => {
 };
 
 const FEE_DATA = {
-    maxFeePerGas:         ethers.parseUnits('60', 'gwei'),
-    maxPriorityFeePerGas: ethers.parseUnits('60',   'gwei'),
+    maxFeePerGas:         ethers.parseUnits('150', 'gwei'),
+    maxPriorityFeePerGas: ethers.parseUnits('150',   'gwei'),
 };
 
 //DEPLOY BOOSTER
@@ -19,7 +19,7 @@ async function deploy() {
     const provider = new ethers.FallbackProvider(providers, 137);
     provider.getFeeData = async () => FEE_DATA;
 
-    const privateKey = "b3bceb5ed45921c942ce3d49b07b4453b7d639e61a05c811d088ba2a658dc88a"; // Reemplaza con tu clave privada
+    const privateKey = ""; // Reemplaza con tu clave privada
     const signer = new ethers.Wallet(privateKey, provider);
 
     const waitForConfirmations = async (tx) => {
@@ -323,7 +323,7 @@ async function deployBooster() {
     const provider = new ethers.FallbackProvider(providers, 137);
     provider.getFeeData = async () => FEE_DATA;
 
-    const privateKey = "b3bceb5ed45921c942ce3d49b07b4453b7d639e61a05c811d088ba2a658dc88a"; // Reemplaza con tu clave privada
+    const privateKey = ""; // Reemplaza con tu clave privada
     const signer = new ethers.Wallet(privateKey, provider);
 
     const waitForConfirmations = async (tx) => {
@@ -461,28 +461,28 @@ async function deployBooster() {
     tx = await membersContract.createMembership('', 0, 0, 0, 0,0,0,true,0,100);
     await waitForConfirmations(tx);
     
-    tx  =await membersContract.createMembership('Pay as you go', 0, 0, 99999, 31536000,ethers.parseEther("500"),ethers.parseEther("9999"),true,100,60);
+    tx  = await membersContract.createMembership('Pay as you go', 0, 0, 99999, 31536000,ethers.parseUnits("500", 6),ethers.parseUnits("9999", 6),true,100,60);
     await waitForConfirmations(tx);
 
-   tx = await membersContract.createMembership('Pay as you go +', 0, 0, 99999, 31536000, ethers.parseEther("10000"), ethers.parseEther("100000000"), true, 50, 50);
+   tx = await membersContract.createMembership('Pay as you go +', 0, 0, 99999, 31536000, ethers.parseUnits("10000", 6), ethers.parseUnits("100000000", 6), true, 50, 50);
    await waitForConfirmations(tx);
 
-   tx = await membersContract.createMembership('Basic', ethers.parseEther("100"), 0, 99999, 31536000, ethers.parseEther("200"), ethers.parseEther("1000"), false, 0, 60);
+   tx = await membersContract.createMembership('Basic', ethers.parseUnits("100", 6), 0, 99999, 31536000, ethers.parseUnits("100", 6), ethers.parseUnits("1000", 6), false, 0, 60);
    await waitForConfirmations(tx);
 
-   tx = await membersContract.createMembership('Essential', ethers.parseEther("250"), 0, 99999, 31536000, ethers.parseEther("200"), ethers.parseEther("2500"), false, 0, 60);
+   tx = await membersContract.createMembership('Essential', ethers.parseUnits("250", 6), 0, 99999, 31536000, ethers.parseUnits("100", 6), ethers.parseUnits("2500", 6), false, 0, 60);
    await waitForConfirmations(tx);
 
-   tx = await membersContract.createMembership('Premium', ethers.parseEther("500"), 0, 99999, 31536000, ethers.parseEther("200"), ethers.parseEther("5000"), false, 0, 60);
+   tx = await membersContract.createMembership('Premium', ethers.parseUnits("500", 6), 0, 99999, 31536000, ethers.parseUnits("100", 6), ethers.parseUnits("5000", 6), false, 0, 60);
    await waitForConfirmations(tx);
 
-   tx = await membersContract.createMembership('Professional', ethers.parseEther("1000"), 0, 99999, 31536000, ethers.parseEther("200"), ethers.parseEther("15000"), false, 0, 50);
+   tx = await membersContract.createMembership('Professional', ethers.parseUnits("1000", 6), 0, 99999, 31536000, ethers.parseUnits("100", 6), ethers.parseUnits("15000", 6), false, 0, 50);
    await waitForConfirmations(tx);
 
-   tx = await membersContract.createMembership('Ultimate', ethers.parseEther("5000"), 0, 99999, 31536000, ethers.parseEther("200"), ethers.parseEther("100000"), false, 0, 40);
+   tx = await membersContract.createMembership('Ultimate', ethers.parseUnits("5000", 6), 0, 99999, 31536000, ethers.parseUnits("100", 6), ethers.parseUnits("100000", 6), false, 0, 40);
    await waitForConfirmations(tx);
 
-   tx = await membersContract.createMembership('Max', ethers.parseEther("10000"), 0, 99999, 31536000, ethers.parseEther("200"), ethers.parseEther("1000000"), false, 0, 30);
+   tx = await membersContract.createMembership('Max', ethers.parseUnits("10000", 6), 0, 99999, 31536000, ethers.parseUnits("100", 6), ethers.parseUnits("1000000", 6), false, 0, 30);
    await waitForConfirmations(tx);
 
    // Setea partner de membership
@@ -662,7 +662,7 @@ async function upgrade() {
 }
 
 
-upgrade().catch((error) => {
+deployBooster().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
