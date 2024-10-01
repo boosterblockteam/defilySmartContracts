@@ -16,7 +16,7 @@ module.exports = {
     polygon: {
       url: "https://polygon-rpc.com/",
       chainId: 137,
-      accounts: ["305d0e9615b9db2f0e4dc362999cdea6da52d2969db58ae9fd2894b28135c2a0"], // AsegÃºrate de definir la PRIVATE_KEY en tu .env
+      accounts: ["b3bceb5ed45921c942ce3d49b07b4453b7d639e61a05c811d088ba2a658dc88a"], // AsegÃºrate de definir la PRIVATE_KEY en tu .env
       gas: 100 * 10**9, // LÃ­mite de gas
       gasPrice: 100 * 10**9 // Precio del gas en gwei (5 gwei)
     },

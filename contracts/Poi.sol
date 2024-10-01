@@ -175,4 +175,42 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         personalDataMap[msg.sender].imageLink = _imageLink;
         emit UserImgChanged(msg.sender, _imageLink);
     }
+
+    function createNewUser(
+        address _address,
+        string memory _encryptedEmail, 
+        string memory _encryptedName,
+        string memory _encryptedUsername,
+        string memory _encryptedPhoneNumber
+    ) public onlyOwner {
+        require(!usedEmails[_encryptedEmail], "Email already used");
+        require(!usedUsernames[_encryptedUsername], "Username already used");
+        require(!usedPhoneNumbers[_encryptedPhoneNumber], "Phone number already used");
+        personalDataMap[_address] = PersonalData({
+            encryptedEmail: _encryptedEmail,
+            encryptedName: _encryptedName,
+            encryptedUsername: _encryptedUsername,
+            encryptedPhoneNumber: _encryptedPhoneNumber,
+            encryptedCountry: "",
+            encryptedGender: "",
+            encryptedDateOfBirth: "",
+            imageLink: "",
+            fbLink: "",
+            igLink: "",
+            youtubeLink: "",
+            yTWelcomeLink: "",
+            tikTokLink: "",
+            wspLink: "",
+            bio: ""
+        });
+
+        usedEmails[_encryptedEmail] = true;
+        usedUsernames[_encryptedUsername] = true;
+        usedPhoneNumbers[_encryptedPhoneNumber] = true;
+        userRegister[_address] = true;
+
+        emit UserCreated(_address);
+    }
+
+
 }

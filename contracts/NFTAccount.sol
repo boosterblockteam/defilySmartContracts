@@ -580,4 +580,100 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         return uriPrefix;
     } 
 
+
+    uint256 public tokenIdsValidus;
+
+    function createNFTAdmin(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public onlyOwner {
+        if(arrayInfo[_user].length != 0){
+            require(_sponsor == arrayInfo[_user][0], "El sponsor debe ser igual a tu primer cuenta");
+        }
+        require(poi.userRegister(_user), "Debe estar registrado en el POI");
+        require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); // Verifica si el nombre ya existe
+     //   require(USDT.transferFrom(msg.sender, address(this), amount), "USDT transfer failed");
+        if(tokenIds != 0){
+            require(ownerOf(_sponsor) != address(this), "Debe tener dueno");
+        }
+        //REVISAR EL TEMA DE tokenIds y _nftNumber
+
+        if (legSide == 3) {
+            // Alterna entre izquierda y derecha basado en nextLegIsLeft
+            if (accountInfo[_sponsor].nextLegIsLeft) {
+                legSide = 2; // Derecha
+            } else {
+                legSide = 1; // Izquierda
+            }
+            accountInfo[_sponsor].nextLegIsLeft = !accountInfo[_sponsor].nextLegIsLeft; // Alterna el estado
+        }
+
+        if(tokenIds != 0){
+            uint256 uplineNFT = _sponsor;
+            uint256 selectedSide;
+            if (legSide == 1) {
+                selectedSide = accountInfo[_sponsor].myLeft;
+            } else if (legSide == 2) {
+                selectedSide = accountInfo[_sponsor].myRight;
+            } else {
+                revert("Invalid leg side");
+            }
+            if (selectedSide != 0) {
+                uint256 nextLevelTokenId = findAvailablePosition(_sponsor, legSide, _nftNumber);
+                if (nextLevelTokenId == 0) {
+                    revert("No available position found");
+                }
+                    uplineNFT = nextLevelTokenId;
+            } 
+            else {
+                if (legSide == 1) {
+                    accountInfo[uplineNFT].myLeft = _nftNumber;
+                } else {
+                    accountInfo[uplineNFT].myRight = _nftNumber;
+                }
+            }
+
+            uint256 childrens = accountInfo[uplineNFT].childrens;
+            require(childrens < 2, "Max childrens its 2");
+            accountInfo[uplineNFT].childrens++;
+
+
+          //  emit RewardFromReferral(_sponsor, (amount * splitAmount) / 100, _nftNumber);
+          //  rewards[_sponsor] += (amount * splitAmount) / 100;
+          //  emit RewardFromReferralAdmin((amount * splitAdminAmount) / 100, _nftNumber);
+          //  adminWalletsRewards += (amount * splitAdminAmount) / 100;
+
+            accountInfo[_nftNumber].NFTID = _nftNumber;
+            accountInfo[_nftNumber].NFTName = _nameAccount;
+            accountInfo[_nftNumber].sponsorNFT = _sponsor;
+            accountInfo[_nftNumber].creationData = block.timestamp;
+            accountInfo[_nftNumber].NFTCid = NFTCid;
+            accountInfo[_nftNumber].uplineNft = uplineNFT;
+            accountInfo[_nftNumber].legSide = legSide;
+            arrayInfo[_user].push(_nftNumber);
+
+        }else{
+            adminWalletsRewards += amount;
+
+            accountInfo[_nftNumber].NFTID = _nftNumber;
+            accountInfo[_nftNumber].NFTName = _nameAccount;
+            accountInfo[_nftNumber].sponsorNFT = _sponsor;
+            accountInfo[_nftNumber].creationData = block.timestamp;
+            accountInfo[_nftNumber].NFTCid = NFTCid;
+            accountInfo[_nftNumber].uplineNft = 0;
+            accountInfo[_nftNumber].legSide = 0;
+            arrayInfo[_user].push(_nftNumber);
+        }
+
+        _mint(_user, _nftNumber);
+       // _transfer(address(this), _user, _nftNumber);
+        selectedImages.push(_nftNumber); // Add selected image to the list
+
+        usedName[_nameAccount] = true;
+
+        nftImage[_nftNumber] = _nftNumber;           
+
+        emit AccountCreated(_nftNumber, _nameAccount, _user, _sponsor, _nftNumber);
+
+        tokenIdsValidus++;
+
+    }
+
 }

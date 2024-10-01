@@ -8,7 +8,7 @@ const FEE_DATA = {
     maxFeePerGas:         ethers.parseUnits('60', 'gwei'),
     maxPriorityFeePerGas: ethers.parseUnits('60',   'gwei'),
 };
-/*
+
 //DEPLOY BOOSTER
 async function deploy() {
 
@@ -19,7 +19,7 @@ async function deploy() {
     const provider = new ethers.FallbackProvider(providers, 137);
     provider.getFeeData = async () => FEE_DATA;
 
-    const privateKey = "305d0e9615b9db2f0e4dc362999cdea6da52d2969db58ae9fd2894b28135c2a0"; // Reemplaza con tu clave privada
+    const privateKey = "b3bceb5ed45921c942ce3d49b07b4453b7d639e61a05c811d088ba2a658dc88a"; // Reemplaza con tu clave privada
     const signer = new ethers.Wallet(privateKey, provider);
 
     const waitForConfirmations = async (tx) => {
@@ -33,7 +33,7 @@ async function deploy() {
     //const walletRegistro1 = "0x43f2081f21e83d34b08c33b9018a4D4C17E142e3" //Defily NFT 50%
     
 
-    const sobranteMembresias1 = "0x18af74a25b3d987bbD3757fd9D78906B248167f0" //boosterBlock membership 50%
+    const sobranteMembresias1 = "0x1C88962c8c20563476E22A5FF3d48C800e4E5394" //boosterBlock membership 50%
     console.log("INICIANDO DESPLIEGUES...")
 
     const POI = await ethers.getContractFactory("POI", signer);
@@ -44,7 +44,11 @@ async function deploy() {
 
     console.log("CONTRATOS CREADOS")
 
-
+    var poiContract = await upgrades.deployProxy(
+        POI,
+        ['0x0000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000'], //DEBEMOS AGREGAR POI, MEMBERS, STAKING
+        { kind: "uups", gasLimit: 100000000000, gasPrice: ethers.parseUnits('100', 'gwei') },
+    );
     
 
     var accountContract = await upgrades.deployProxy(
@@ -189,7 +193,7 @@ async function deploy() {
    await waitForConfirmations(tx);
 
    // Setea admin de Account
-   tx = await accountContract.setAdminWallet("0xA4064F8C0160699270Cc7AFB55ccC87e9424De7a");
+   tx = await accountContract.setAdminWallet(sobranteMembresias1);
    await waitForConfirmations(tx);
 
    // POI
@@ -305,7 +309,7 @@ async function deployTreasury() {
         address: treContImpl,
         constructorArguments: [],
     });
-}*/
+}
 
 
 
@@ -319,7 +323,7 @@ async function deployBooster() {
     const provider = new ethers.FallbackProvider(providers, 137);
     provider.getFeeData = async () => FEE_DATA;
 
-    const privateKey = "305d0e9615b9db2f0e4dc362999cdea6da52d2969db58ae9fd2894b28135c2a0"; // Reemplaza con tu clave privada
+    const privateKey = "b3bceb5ed45921c942ce3d49b07b4453b7d639e61a05c811d088ba2a658dc88a"; // Reemplaza con tu clave privada
     const signer = new ethers.Wallet(privateKey, provider);
 
     const waitForConfirmations = async (tx) => {
@@ -349,13 +353,11 @@ async function deployBooster() {
     await poiContract.waitForDeployment();
     var accountContract = await upgrades.deployProxy(
         Account,
-        ['0xA1Ae1b4accfe4b9c2DdB33a8FAAA209f19d3d9ED', '0x0000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000', "30000000000000000000"], //DEBEMOS AGREGAR POI, MEMBERS, STAKING
+        ['0xA1Ae1b4accfe4b9c2DdB33a8FAAA209f19d3d9ED', '0x0000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000', "30000000"], //DEBEMOS AGREGAR POI, MEMBERS, STAKING
         { kind: "uups"
          },
         
     );
-    console.log("Tood ben")
-    //await waitForConfirmations(accountContract);
     console.log("Deploy ACCOUNT");
     await accountContract.waitForDeployment();
 
@@ -484,11 +486,11 @@ async function deployBooster() {
    await waitForConfirmations(tx);
 
    // Setea partner de membership
-   tx = await membersContract.setPartnerShip("0xA4064F8C0160699270Cc7AFB55ccC87e9424De7a");
+   tx = await membersContract.setPartnerShip("0x1C88962c8c20563476E22A5FF3d48C800e4E5394");
    await waitForConfirmations(tx);
 
    // Setea admin de Account
-   tx = await accountContract.setAdminWallet("0xA4064F8C0160699270Cc7AFB55ccC87e9424De7a");
+   tx = await accountContract.setAdminWallet("0x1C88962c8c20563476E22A5FF3d48C800e4E5394");
    await waitForConfirmations(tx);
 
    // POI
@@ -637,7 +639,30 @@ async function deployAccount() {
 
 }
 
-deployAccount().catch((error) => {
+
+async function upgrade() {
+    var proxyAddress = '0xE80505de9fE40E5530357d02D357f33C981Aac93'; //CONTRATO DEL QUE QUEREMOS HACER UPGRADE
+    var Contract2 = await hre.ethers.getContractFactory("NFTAccount");  //NOMBRE DEL CONTRATO
+    await upgrades.upgradeProxy(proxyAddress, Contract2, {
+        gasLimit: 10000000, 
+        gasPrice: ethers.parseUnits('150', 'gwei') 
+    });
+
+    await wait(30000);
+
+    var implV2 = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+    console.log('Address implV2: ', implV2);
+
+    await wait(30000);
+
+    await hre.run("verify:verify", {
+        address: implV2,
+        constructorArguments: [],
+    });
+}
+
+
+upgrade().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
