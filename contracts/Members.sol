@@ -169,7 +169,6 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
         splitAdminAmount = _amount;
     }
     
-    //Variables de Usuario
 
     function validatePromoCode(string memory _promoCode) public view returns (uint256) {
         require(promoCodes[_promoCode].isUsed, "Invalid promo code");
@@ -177,11 +176,10 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
     }
 
     function buyMembership(uint256 _membershipId,uint256 _nftUse, string memory _promoCode) public  {
-     // if(accountContract.ownerOf(0) != msg.sender){
-            Membership storage membership = memberships[_membershipId]; //Agarra la membresia actual
+            Membership storage membership = memberships[_membershipId]; 
             uint256 discount;
             uint256 sponsor;
-            (, , , uint256 sponsorNFT, , , , , , , , , , ,) = accountContract.accountInfo(_nftUse);
+            (, , , uint256 sponsorNFT, , , , , , , , , , , ,) = accountContract.accountInfo(_nftUse);
             sponsor =  sponsorNFT;       
             if (bytes(_promoCode).length > 0) {
                 discount = validatePromoCode(_promoCode);
@@ -198,16 +196,14 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
                 require(sponsor != _nftUse, "sponsor dif own address"); //Verifica expiracion
                 require(haveMembership[sponsor], "sponsor dont have membership"); //Verifica expiracion
             }
-            require(accountContract.ownerOf(_nftUse) == msg.sender ,"Debe ser el dueno del NFT"); //Verifica expiracion
-            require(poiContract.userRegister(msg.sender),"Debe estar registrado"); //Debe estar registrado
+            require(accountContract.ownerOf(_nftUse) == msg.sender ,"Debe ser el dueno del NFT");
+            require(poiContract.userRegister(msg.sender),"Debe estar registrado"); 
            
            if(!haveMembership[_nftUse]){
-                leadershipSplitPartners[_nftUse] = sponsor; //Setea el referido para la wallet actual 
+                leadershipSplitPartners[_nftUse] = sponsor; 
                 haveMembership[_nftUse] = true;
            }
 
-            //SE BORRO TODO EL WHILE CON LA LOGICA DE UPDATE DE ACCOUNT Y DE PAGO.
-            //ACA DEBERIA LLAMAR A FUNCION DE CONTRATO CON LOGICA DE PAGO Y AHI HACER LOS UPDATE Y PAGAR
        
             membershipOfUsers[_nftUse].push(InfoOfMembershipsBuy(_membershipId, block.timestamp, block.timestamp + (membership.expirationMembership * 1 seconds),0));
             MembersMoney[_nftUse] += finalAmount;
@@ -231,19 +227,9 @@ contract MembershipContract is Initializable, AccessControlUpgradeable, UUPSUpgr
                 hasExecuted[msg.sender] = true;
             }
             require(USDT.transferFrom(msg.sender, address(this), finalAmount), "USDT transfer failed");
+            accountContract.updateTotalDirect(sponsor,finalAmount);
             emit MembershipPurchased(_membershipId, _nftUse, sponsor, msg.sender, _promoCode, membership.membershipAmount);
-      /*  }else{
-            console.log("buyMembership2");
-                require(accountContract.ownerOf(_nftUse) == _wallet ,"Debe ser el dueno del NFT"); //Verifica expiracion
-                Membership storage membership = memberships[_membershipId]; //Agarra la membresia actual
-                membership.actualMemberships++; //Suma 1 en la cantidad de gente
-                accountContract.updateMembership(_nftUse,_membershipId);
-                haveMembership[_nftUse] = true;
-                membershipOfUsers[_nftUse].push(InfoOfMembershipsBuy(_membershipId, block.timestamp, block.timestamp + (membership.expirationMembership * 1 seconds),0));
-                bestMember[_nftUse] = _membershipId;
-                hasExecuted[_wallet] = true;
-        }*/
-     //   Membership storage membership = memberships[_membershipId];
+     
 
     }
 

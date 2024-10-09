@@ -74,6 +74,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         uint256[] missedProfit;
         uint256[] payedProfit;
         uint256 rank;
+        uint256 directAmount;
         uint256 totalDirect;
         uint256 totalGlobal;
         bool nextLegIsLeft;
@@ -100,17 +101,14 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         stakingAddress = _stakingAddress;
         amount = _amount;
 
-        uriPrefix = "https://amaranth-intelligent-hamster-729.mypinata.cloud/ipfs/QmVn3jRPCnjzhGnm2u5p21jR2F3HJGSsNvefbLVLxLTByy/";
+        uriPrefix = "ipfs://bafybeigjhmsqpvvwg2ff472qg32ozyjzyxhaumrs3nq5pg2ug6qpdsegyy/";
         uriSuffix = ".json";
 
         setSplitAdminAmount(50);
         setSplitAmount(50);
 
         for (uint256 i = 0; i < 1000; i++) {
-            // Mint NFT to the contract itself
             _mint(address(this), i);
-          // selectedImages.push(i); // Add each minted NFT index to the selectedImages array
-          //  tokenIds++;
         }
 
 
@@ -178,6 +176,8 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     function createNFT(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public {
         if(arrayInfo[_user].length != 0){
             require(_sponsor == arrayInfo[_user][0], "El sponsor debe ser igual a tu primer cuenta");
+        }else{
+            accountInfo[_sponsor].directAmount++;
         }
         require(poi.userRegister(_user), "Debe estar registrado en el POI");
         require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); // Verifica si el nombre ya existe
@@ -363,7 +363,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
     //Update
     function updateTotalDirect(uint256 _tokenId, uint256 _directVol) public {
-        require(msg.sender == membershipContractAddress || msg.sender == stakingAddress, "Funcion solo callable desde el contrato members");
+
         accountInfo[_tokenId].totalDirect += _directVol;
         emit TotalDirectUpdated(_tokenId, _directVol);
     }

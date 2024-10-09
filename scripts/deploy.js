@@ -323,7 +323,7 @@ async function deployBooster() {
     const provider = new ethers.FallbackProvider(providers, 137);
     provider.getFeeData = async () => FEE_DATA;
 
-    const privateKey = ""; // Reemplaza con tu clave privada
+    const privateKey = "b43b503baad0f5e1afb0c2f3b82385822f09ab5ecf42551fe5986092865b23df"; // Reemplaza con tu clave privada
     const signer = new ethers.Wallet(privateKey, provider);
 
     const waitForConfirmations = async (tx) => {

@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./Members.sol";
 import "./NFTAccount.sol";
 import "./Poi.sol";
-
+import "hardhat/console.sol";
 contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, OwnableUpgradeable {
     IERC20 public usdt;
     MembershipContract public membershipContract;
@@ -87,23 +87,14 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
         accountContract.updateStaked(_nftUse,_amount);
         userStakes[_nftUse] += _amount;
         TVL += _amount;
-
         if(membership.fee){
-
-            //Reparto extra como membresia
-            uint256 finalAmount = (_amount * membership.amountFee)/1000;
-            uint256  negativeAmount;
-            // Dentro del bucle while en tu contrato Staking
+            uint256 finalAmount = _amount + (_amount * membership.amountFee)/1000;
+           
             
-            //SE BORRO TODO EL WHILE CON LA LOGICA DE UPDATE DE ACCOUNT Y DE PAGO.
-            //ACA DEBERIA LLAMAR A FUNCION DE CONTRATO CON LOGICA DE PAGO Y AHI HACER LOS UPDATE Y PAGAR
+            partnerShipRewards += (_amount * membership.amountFee)/1000;
+          
             
-            partnerShipRewards += (finalAmount - negativeAmount);
-           //  for (uint i = 0; i < membershipContract.getPartnerShipSplitLength(); i++) {  //Recorre el array de equpos y envia la parte asignada a cada uno y aumenta nevativeAmount
-           //     (address wallet, uint256 percentage) = membershipContract.partnerShipSplit(i);
-           //     require(usdt.transferFrom(msg.sender, wallet, ((finalAmount - negativeAmount) * percentage) / 1000), "USDT transfer failed");
-           //  } 
-            require(usdt.transferFrom(msg.sender, treasuryAddress, _amount), "USDT transfer failed");
+            require(usdt.transferFrom(msg.sender, treasuryAddress, finalAmount), "USDT transfer failed");
         }else{
             usdt.transferFrom(msg.sender, treasuryAddress, _amount);
         }
