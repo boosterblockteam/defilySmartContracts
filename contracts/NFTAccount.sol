@@ -28,6 +28,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     uint256 public amount;
     uint256 public splitAmount;
     uint256 public splitAdminAmount;
+    uint256 public newTokenIds;
 
     event AccountCreated(uint256 indexed tokenId, string NFTName, address user, uint256 sponsor, uint256 nftNumber);
     event RewardFromReferral(uint256 indexed tokenId, uint256 amount, uint256 referredTokenId);
@@ -58,40 +59,49 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     struct accountInfoData {
         uint256 NFTID;
         string NFTName;
-        string NFTCid;  //VERSION BINARIA
+        string NFTCid;  
         uint256 sponsorNFT;
-        uint256 uplineNft; //VERSION BINARIA
-        uint256 legSide;   //VERSION BINARIA 1 izquierda 2 derecha
-        uint256 myLeft;   //VERSION BINARIA
-        uint256 myRight;   //VERSION BINARIA
+        uint256 uplineNft; 
+        uint256 legSide;   
+        uint256 myLeft;   
+        uint256 myRight;   
         uint256 creationData;
         uint256[] membership;
-        VolumeInfo[] directVol; // Cada posición del array es un tokenId
-        VolumeInfo[][] globalVol; // Doble array para almacenar niveles y ID de cada nivel
+        VolumeInfo[] directVol; 
+        VolumeInfo[][] globalVol; 
         uint256 childrens;
         uint256 staked;
         uint256[] profit;
         uint256[] missedProfit;
         uint256[] payedProfit;
         uint256 rank;
-        uint256 directAmount;
         uint256 totalDirect;
         uint256 totalGlobal;
         bool nextLegIsLeft;
+        uint256 directAmount;
+    }
+
+    struct infoTranches {
+        uint256 amount;
+        uint256 time;
     }
 
 
-    mapping(uint256 => accountInfoData) public accountInfo; //Informacion de la persona
-    mapping(address => uint256[]) public arrayInfo; //Array de info de un usuario
+    mapping(uint256 => accountInfoData) public accountInfo; 
+    mapping(address => uint256[]) public arrayInfo; 
     mapping(string => bool) public usedName; 
     mapping(uint256 => uint256) public totalPayedRewards; 
     mapping(uint256 => uint256) public nftImage;
     mapping(uint256 => uint256) public rewards;
+    mapping(uint256 => uint256[]) public directsPerTranches;
+    mapping(uint256 => infoTranches[]) public bonusPerTranches;
+    mapping(uint256 => infoTranches[]) public rankPerTranches;
+
 
 
 
     function initialize(address _usdtAddress, address _poiContractAddress, address _memberContract, address _stakingAddress, uint256 _amount) public initializer { 
-        __ERC721_init("TEST Defily NFT", "TD"); 
+        __ERC721_init("Defily NFT", "DNFT"); 
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         USDT = IERC20(_usdtAddress);
@@ -110,13 +120,12 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         for (uint256 i = 0; i < 1000; i++) {
             _mint(address(this), i);
         }
-
-
     }
+
+     //Admin Variables
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    //Variables de admin
     function setUsdtContract(address _usdtAddress) public onlyOwner { 
         USDT = IERC20(_usdtAddress);
     }
@@ -172,29 +181,115 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         uriSuffix = _uriSuffix;
     }
 
-    //Variables de Usuario
-    function createNFT(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public {
-        if(arrayInfo[_user].length != 0){
-            require(_sponsor == arrayInfo[_user][0], "El sponsor debe ser igual a tu primer cuenta");
-        }else{
-            accountInfo[_sponsor].directAmount++;
-        }
+
+    function createNFTAdmin(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public onlyOwner {
+       
         require(poi.userRegister(_user), "Debe estar registrado en el POI");
-        require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); // Verifica si el nombre ya existe
+        require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre.");
+        if(tokenIds != 0){
+            require(ownerOf(_sponsor) != address(this), "Debe tener dueno");
+        }
+
+        accountInfo[_sponsor].directAmount++;
+        directsPerTranchesV2[_sponsor].push(infoDirectsPerTranches(block.timestamp, _nftNumber));
+
+        if (legSide == 3) {
+            if (accountInfo[_sponsor].nextLegIsLeft) {
+                legSide = 2;
+            } else {
+                legSide = 1; 
+            }
+            accountInfo[_sponsor].nextLegIsLeft = !accountInfo[_sponsor].nextLegIsLeft; 
+        }
+
+        if(tokenIds != 0){
+            uint256 uplineNFT = _sponsor;
+            uint256 selectedSide;
+            if (legSide == 1) {
+                selectedSide = accountInfo[_sponsor].myLeft;
+            } else if (legSide == 2) {
+                selectedSide = accountInfo[_sponsor].myRight;
+            } else {
+                revert("Invalid leg side");
+            }
+            if (selectedSide != 0) {
+                uint256 nextLevelTokenId = findAvailablePosition(_sponsor, legSide, _nftNumber);
+                if (nextLevelTokenId == 0) {
+                    revert("No available position found");
+                }
+                    uplineNFT = nextLevelTokenId;
+            } 
+            else {
+                if (legSide == 1) {
+                    accountInfo[uplineNFT].myLeft = _nftNumber;
+                } else {
+                    accountInfo[uplineNFT].myRight = _nftNumber;
+                }
+            }
+
+            uint256 childrens = accountInfo[uplineNFT].childrens;
+            require(childrens < 2, "Max childrens its 2");
+            accountInfo[uplineNFT].childrens++;
+            accountInfo[_nftNumber].NFTID = _nftNumber;
+            accountInfo[_nftNumber].NFTName = _nameAccount;
+            accountInfo[_nftNumber].sponsorNFT = _sponsor;
+            accountInfo[_nftNumber].creationData = block.timestamp;
+            accountInfo[_nftNumber].NFTCid = NFTCid;
+            accountInfo[_nftNumber].uplineNft = uplineNFT;
+            accountInfo[_nftNumber].legSide = legSide;
+            arrayInfo[_user].push(_nftNumber);
+
+        }else{
+            adminWalletsRewards += amount;
+            accountInfo[_nftNumber].NFTID = _nftNumber;
+            accountInfo[_nftNumber].NFTName = _nameAccount;
+            accountInfo[_nftNumber].sponsorNFT = _sponsor;
+            accountInfo[_nftNumber].creationData = block.timestamp;
+            accountInfo[_nftNumber].NFTCid = NFTCid;
+            accountInfo[_nftNumber].uplineNft = 0;
+            accountInfo[_nftNumber].legSide = 0;
+            arrayInfo[_user].push(_nftNumber);
+        }
+
+        _transfer(address(this), _user, _nftNumber);
+        selectedImages.push(_nftNumber);
+        usedName[_nameAccount] = true;
+        nftImage[_nftNumber] = _nftNumber;           
+        emit AccountCreated(_nftNumber, _nameAccount, _user, _sponsor, _nftNumber);
+        newTokenIds++;
+    }
+
+    function updateRankAdmin(uint256 _tokenIds, uint256 _rank) public onlyOwner() {
+        accountInfo[_tokenIds].rank = _rank;
+        rankPerTranches[_tokenIds].push(infoTranches(
+            _rank,
+            block.timestamp
+        ));
+        emit RankUpdated(_tokenIds, _rank);
+    }
+
+
+    //User Variables
+    function createNFT(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public {
+        require(poi.userRegister(_user), "Debe estar registrado en el POI");
+        require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); 
         require(USDT.transferFrom(msg.sender, address(this), amount), "USDT transfer failed");
         if(tokenIds != 0){
             require(ownerOf(_sponsor) != address(this), "Debe tener dueno");
         }
-        //REVISAR EL TEMA DE tokenIds y _nftNumber
+      
+        
+        accountInfo[_sponsor].directAmount++;
+        directsPerTranchesV2[_sponsor].push(infoDirectsPerTranches(block.timestamp, _nftNumber));
 
         if (legSide == 3) {
-            // Alterna entre izquierda y derecha basado en nextLegIsLeft
+            
             if (accountInfo[_sponsor].nextLegIsLeft) {
-                legSide = 2; // Derecha
+                legSide = 2;
             } else {
-                legSide = 1; // Izquierda
+                legSide = 1;
             }
-            accountInfo[_sponsor].nextLegIsLeft = !accountInfo[_sponsor].nextLegIsLeft; // Alterna el estado
+            accountInfo[_sponsor].nextLegIsLeft = !accountInfo[_sponsor].nextLegIsLeft; 
         }
 
         if(tokenIds != 0){
@@ -226,9 +321,12 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             require(childrens < 2, "Max childrens its 2");
             accountInfo[uplineNFT].childrens++;
 
-
             emit RewardFromReferral(_sponsor, (amount * splitAmount) / 100, _nftNumber);
             rewards[_sponsor] += (amount * splitAmount) / 100;
+            bonusPerTranches[_sponsor].push(infoTranches(
+                (amount * splitAmount) / 100,
+                block.timestamp
+            ));
             emit RewardFromReferralAdmin((amount * splitAdminAmount) / 100, _nftNumber);
             adminWalletsRewards += (amount * splitAdminAmount) / 100;
 
@@ -240,7 +338,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             accountInfo[_nftNumber].uplineNft = uplineNFT;
             accountInfo[_nftNumber].legSide = legSide;
             arrayInfo[_user].push(_nftNumber);
-
         }else{
             adminWalletsRewards += amount;
 
@@ -254,9 +351,8 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             arrayInfo[_user].push(_nftNumber);
         }
 
-        //_mint(_user, tokenIds);
         _transfer(address(this), _user, _nftNumber);
-        selectedImages.push(_nftNumber); // Add selected image to the list
+        selectedImages.push(_nftNumber); 
 
         usedName[_nameAccount] = true;
 
@@ -265,48 +361,35 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         emit AccountCreated(_nftNumber, _nameAccount, _user, _sponsor, _nftNumber);
 
         tokenIds++;
-
     }
 
     function findAvailablePosition(uint256 _sponsor, uint256 _legSide, uint256 _newTokenId) internal  returns (uint256) {
-        // Verifica si el patrocinador tiene el lado izquierdo o derecho vacío
         if (_legSide == 1) {
-            // Si el lado izquierdo está vacío, devuelve el ID del patrocinador
             if (accountInfo[_sponsor].myLeft == 0) {
                 accountInfo[_sponsor].myLeft = _newTokenId;
                 return _sponsor;
             } else {
-                // Busca una posición disponible en el lado izquierdo
                 return findAvailablePositionInTree(accountInfo[_sponsor].myLeft, _newTokenId, _legSide);
                
             }
         } else if (_legSide == 2) {
-            // Si el lado derecho está vacío, devuelve el ID del patrocinador
             if (accountInfo[_sponsor].myRight == 0) {
                 accountInfo[_sponsor].myRight = _newTokenId;
                 return _sponsor;
             } else {
-                // Busca una posición disponible en el lado derecho
                 return findAvailablePositionInTree(accountInfo[_sponsor].myRight, _newTokenId, _legSide);
             }
         } else {
             revert("Invalid leg side");
         }
-
     }
 
     function findAvailablePositionInTree(uint256 _rootTokenId, uint256 _newTokenId, uint256 _legSide) internal  returns (uint256) {
-        // Recorre el árbol binario en busca de una posición vacía
        if (_legSide == 1) {
             if (accountInfo[_rootTokenId].myLeft == 0) {
                 accountInfo[_rootTokenId].myLeft = _newTokenId;
                 return _rootTokenId;
             } else {
-               // uint256 leftPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myLeft,_newTokenId, _legSide);
-                //if (leftPosition != 0) {
-                   // accountInfo[_rootTokenId].myLeft = _newTokenId;
-                   // return leftPosition;
-               // }
                 uint256 leftPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myLeft,_newTokenId, _legSide);
                 return leftPosition;
             }
@@ -316,11 +399,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
                 accountInfo[_rootTokenId].myRight = _newTokenId;
                 return _rootTokenId;
             } else {
-                //uint256 rightPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myRight, _newTokenId, _legSide);
-                //if (rightPosition != 0) {
-                 //   accountInfo[_rootTokenId].myRight = _newTokenId;
-                //    return rightPosition;
-                //}
                 uint256 rightPosition = findAvailablePositionInTree(accountInfo[_rootTokenId].myRight, _newTokenId, _legSide);
                 return rightPosition;
             }
@@ -331,9 +409,7 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     function transferAccount(address _from, address _to, uint256 _tokenId) public {
             require(msg.sender == ownerOf(_tokenId), "Not the owner");
         require(poi.userRegister(_from), "Debe estar registrado en el POI");
-
         _transfer(_from, _to, _tokenId);
-        
         uint256[] storage fromArray = arrayInfo[_from];
         for (uint256 i = 0; i < fromArray.length; i++) {
             if (fromArray[i] == _tokenId) {
@@ -342,7 +418,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
                 break;
             }
         }
-        
         arrayInfo[_to].push(_tokenId);
         emit AccountTransferred(_from, _to, _tokenId);
     }
@@ -361,7 +436,20 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         emit AllAccountsTransferred(_from, _to);
     }
 
-    //Update
+    function renameAccount(uint256 _tokenIds, string memory _nameAccount) public {
+        require(msg.sender == ownerOf(_tokenIds), "Not the owner");
+        accountInfo[_tokenIds].NFTName = _nameAccount;
+        emit AccountRenamed(_tokenIds, _nameAccount);
+    }
+   
+    function claimNftReward(uint256 _nftUse) public {
+        require(ownerOf(_nftUse) == msg.sender ,"Not the owner"); 
+        emit RewardClaimed(msg.sender, _nftUse, rewards[_nftUse]);
+        require(USDT.transfer(msg.sender, rewards[_nftUse]), "USDT transfer failed");
+        totalPayedRewards[_nftUse] += rewards[_nftUse];
+        rewards[_nftUse] = 0;
+    }
+
     function updateTotalDirect(uint256 _tokenId, uint256 _directVol) public {
 
         accountInfo[_tokenId].totalDirect += _directVol;
@@ -396,7 +484,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     function updateGlobalVol(uint256 _tokenId, uint256 _globalVol, uint256 level, uint256 referredTokenId) public {
         require(msg.sender == membershipContractAddress || msg.sender == stakingAddress, "Funcion solo callable desde el contrato members");
 
-        // Asegúrate de que el nivel exista en el array
         if (accountInfo[_tokenId].globalVol.length <= level) {
             for (uint256 i = accountInfo[_tokenId].globalVol.length; i <= level; i++) {
                 accountInfo[_tokenId].globalVol.push();
@@ -436,14 +523,11 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     
     function updateProfit(uint256 _tokenId, uint256 level, uint256 _amount) public {
         require(msg.sender == membershipContractAddress || msg.sender == stakingAddress, "Only the membership or staking contract can call this function"); 
-        
-        // Asegúrate de que el nivel exista en el array
         if (accountInfo[_tokenId].profit.length <= level) {
             for (uint256 i = accountInfo[_tokenId].profit.length; i <= level; i++) {
                 accountInfo[_tokenId].profit.push(0);
             }
         }
-
         accountInfo[_tokenId].profit[level] += _amount;
         emit ProfitUpdated(_tokenId, level, _amount);
     }
@@ -451,8 +535,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
     function updateMissedProfit(uint256 _tokenId, uint256 level, uint256 _amount) public {
         require(msg.sender == membershipContractAddress || msg.sender == stakingAddress, "Only the membership or staking contract can call this function"); 
-        
-        // Asegúrate de que el nivel exista en el array
         if (accountInfo[_tokenId].missedProfit.length <= level) {
             for (uint256 i = accountInfo[_tokenId].missedProfit.length; i <= level; i++) {
                 accountInfo[_tokenId].missedProfit.push(0);
@@ -465,14 +547,11 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
     function updatePayedProfit(uint256 _tokenId, uint256 level, uint256 _amount) public {
         require(msg.sender == membershipContractAddress || msg.sender == stakingAddress, "Only the membership or staking contract can call this function"); 
-        
-        // Asegúrate de que el nivel exista en el array
         if (accountInfo[_tokenId].payedProfit.length <= level) {
             for (uint256 i = accountInfo[_tokenId].payedProfit.length; i <= level; i++) {
                 accountInfo[_tokenId].payedProfit.push(0);
             }
         }
-
         accountInfo[_tokenId].payedProfit[level] += _amount;
         emit PayedProfitUpdated(_tokenId, level, _amount);
     }
@@ -480,16 +559,16 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     function updateRank(uint256 _tokenIds, uint256 _rank) public {
         require(msg.sender == rankAddress || msg.sender == owner(), "Only the rank contract or the owner can call this function");
         accountInfo[_tokenIds].rank = _rank;
+        rankPerTranches[_tokenIds].push(infoTranches(
+            _rank,
+            block.timestamp
+        ));
         emit RankUpdated(_tokenIds, _rank);
     }
 
-    function renameAccount(uint256 _tokenIds, string memory _nameAccount) public {
-        require(msg.sender == ownerOf(_tokenIds), "Not the owner");
-        accountInfo[_tokenIds].NFTName = _nameAccount;
-        emit AccountRenamed(_tokenIds, _nameAccount);
-    }
 
-    //GETTERS
+
+    //Getters
 
     function getTotalDirect(uint256 _tokenId) public view returns (uint256) {
         return accountInfo[_tokenId].totalDirect;
@@ -512,7 +591,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         return (volInfo.tokenId, volInfo.amount);
     }
 
-    // Obtener la cantidad de personas en un nivel específico de globalVol
     function getGlobalVolCount(uint256 _tokenId, uint256 level) public view returns (uint256) {
         require(level < accountInfo[_tokenId].globalVol.length, "Nivel no existe");
         return accountInfo[_tokenId].globalVol[level].length;
@@ -554,14 +632,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
         return accountInfo[_tokenId].rank;
     }
 
-    function claimNftReward(uint256 _nftUse) public {
-        require(ownerOf(_nftUse) == msg.sender ,"Not the owner"); //Verifica expiracion
-        emit RewardClaimed(msg.sender, _nftUse, rewards[_nftUse]);
-        require(USDT.transfer(msg.sender, rewards[_nftUse]), "USDT transfer failed");
-        totalPayedRewards[_nftUse] += rewards[_nftUse];
-        rewards[_nftUse] = 0;
-    }
-
     function getSelectedImages() public view returns (uint256[] memory) {
         return selectedImages;
     }
@@ -584,28 +654,38 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
     } 
 
 
-    uint256 public tokenIdsValidus;
 
-    function createNFTAdmin(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public onlyOwner {
-        if(arrayInfo[_user].length != 0){
-            require(_sponsor == arrayInfo[_user][0], "El sponsor debe ser igual a tu primer cuenta");
-        }
-        require(poi.userRegister(_user), "Debe estar registrado en el POI");
-        require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); // Verifica si el nombre ya existe
-     //   require(USDT.transferFrom(msg.sender, address(this), amount), "USDT transfer failed");
+    //New Logic
+
+
+    function updateAccountStructure(uint256 tokenId, uint256 newUplineNft, uint256 newMyLeft, uint256 newMyRight) public onlyOwner {
+
+        accountInfo[tokenId].uplineNft = newUplineNft;
+        accountInfo[tokenId].myLeft = newMyLeft;
+        accountInfo[tokenId].myRight = newMyRight;
+    }
+
+
+    function createNFTFromUser(string memory _nameAccount, address _user, uint256 _sponsor, string memory NFTCid, uint256 legSide, uint256 _nftNumber) public {
+      //  require(poi.userRegister(_user), "Debe estar registrado en el POI");
+        require(!usedName[_nameAccount], "El nombre de cuenta ya existe, seleccione otro nombre."); 
+        require(USDT.transferFrom(msg.sender, address(this), amount), "USDT transfer failed");
         if(tokenIds != 0){
             require(ownerOf(_sponsor) != address(this), "Debe tener dueno");
         }
-        //REVISAR EL TEMA DE tokenIds y _nftNumber
+      
+        
+        accountInfo[_sponsor].directAmount++;
+        directsPerTranchesV2[_sponsor].push(infoDirectsPerTranches(block.timestamp, _nftNumber));
 
         if (legSide == 3) {
-            // Alterna entre izquierda y derecha basado en nextLegIsLeft
+            
             if (accountInfo[_sponsor].nextLegIsLeft) {
-                legSide = 2; // Derecha
+                legSide = 2;
             } else {
-                legSide = 1; // Izquierda
+                legSide = 1;
             }
-            accountInfo[_sponsor].nextLegIsLeft = !accountInfo[_sponsor].nextLegIsLeft; // Alterna el estado
+            accountInfo[_sponsor].nextLegIsLeft = !accountInfo[_sponsor].nextLegIsLeft; 
         }
 
         if(tokenIds != 0){
@@ -637,11 +717,14 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             require(childrens < 2, "Max childrens its 2");
             accountInfo[uplineNFT].childrens++;
 
-
-          //  emit RewardFromReferral(_sponsor, (amount * splitAmount) / 100, _nftNumber);
-          //  rewards[_sponsor] += (amount * splitAmount) / 100;
-          //  emit RewardFromReferralAdmin((amount * splitAdminAmount) / 100, _nftNumber);
-          //  adminWalletsRewards += (amount * splitAdminAmount) / 100;
+            emit RewardFromReferral(_sponsor, (amount * splitAmount) / 100, _nftNumber);
+            rewards[_sponsor] += (amount * splitAmount) / 100;
+            bonusPerTranches[_sponsor].push(infoTranches(
+                (amount * splitAmount) / 100,
+                block.timestamp
+            ));
+            emit RewardFromReferralAdmin((amount * splitAdminAmount) / 100, _nftNumber);
+            adminWalletsRewards += (amount * splitAdminAmount) / 100;
 
             accountInfo[_nftNumber].NFTID = _nftNumber;
             accountInfo[_nftNumber].NFTName = _nameAccount;
@@ -651,7 +734,6 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             accountInfo[_nftNumber].uplineNft = uplineNFT;
             accountInfo[_nftNumber].legSide = legSide;
             arrayInfo[_user].push(_nftNumber);
-
         }else{
             adminWalletsRewards += amount;
 
@@ -665,9 +747,8 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
             arrayInfo[_user].push(_nftNumber);
         }
 
-        _mint(_user, _nftNumber);
-       // _transfer(address(this), _user, _nftNumber);
-        selectedImages.push(_nftNumber); // Add selected image to the list
+        _transfer(address(this), _user, _nftNumber);
+        selectedImages.push(_nftNumber); 
 
         usedName[_nameAccount] = true;
 
@@ -675,8 +756,25 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
         emit AccountCreated(_nftNumber, _nameAccount, _user, _sponsor, _nftNumber);
 
-        tokenIdsValidus++;
-
+        tokenIds++;
     }
+
+    //New logic
+
+    function getDirectsPerTranchesLength(uint256 _nftId) public view returns(uint256) {
+       return directsPerTranchesV2[_nftId].length;
+    }
+
+    function getDirectsPerTranchesNftId(uint256 _nftId, uint256 _index) public view returns(uint256) {
+       return directsPerTranchesV2[_nftId][_index].nftId;
+    }
+
+
+    struct infoDirectsPerTranches {
+        uint256 time;
+        uint256 nftId;
+    }
+
+    mapping(uint256 => infoDirectsPerTranches[]) public directsPerTranchesV2;
 
 }

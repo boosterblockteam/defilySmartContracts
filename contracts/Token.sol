@@ -4,9 +4,14 @@ pragma solidity >=0.4.22 <0.9.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract StoneToken is ERC20 {
-  constructor() ERC20("BUSD", "BUSD") {
+    constructor() ERC20("BUSD", "BUSD") {
         _mint(address(this), 10000000 * (10 ** uint256(decimals())));
         _approve(address(this), msg.sender, totalSupply());
         _transfer(address(this), msg.sender, totalSupply());
-  }
+    }
+
+    // Sobrescribir la función `decimals` para retornar 6
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
 }

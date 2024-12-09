@@ -27,7 +27,6 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         string encryptedName;
         string encryptedUsername;
         string encryptedPhoneNumber;
-
         string encryptedCountry;
         string encryptedGender;
         string encryptedDateOfBirth;
@@ -42,11 +41,11 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
     }
 
 
-    mapping(address => PersonalData) public personalDataMap; //Informacion de la persona
-    mapping(address => bool) public userRegister;//Verifica si esta registrado
-    mapping(string => bool) public usedEmails; // Almacena emails usados
-    mapping(string => bool) public usedUsernames; // Almacena nombres de usuario usados
-    mapping(string => bool) public usedPhoneNumbers; // Almacena números de teléfono usados
+    mapping(address => PersonalData) public personalDataMap; 
+    mapping(address => bool) public userRegister;
+    mapping(string => bool) public usedEmails;
+    mapping(string => bool) public usedUsernames;
+    mapping(string => bool) public usedPhoneNumbers;
 
         
 
@@ -61,9 +60,10 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         membershipContract = MembershipContract(_memberContract);
     }
 
+    //Admin Variables
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    // Funciones Administrativas
     function updateAccountContract(address _accountContract) public onlyRole(ADMIN_ROLE) {
         accountContract = NFTAccount(_accountContract);
     }
@@ -72,7 +72,44 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         membershipContract = MembershipContract(_memberContract);
     }
 
-    //Fuciones de Usuario
+    function createNewUser(
+        address _address,
+        string memory _encryptedEmail, 
+        string memory _encryptedName,
+        string memory _encryptedUsername,
+        string memory _encryptedPhoneNumber
+    ) public onlyOwner {
+        require(!usedEmails[_encryptedEmail], "Email already used");
+        require(!usedUsernames[_encryptedUsername], "Username already used");
+        require(!usedPhoneNumbers[_encryptedPhoneNumber], "Phone number already used");
+        personalDataMap[_address] = PersonalData({
+            encryptedEmail: _encryptedEmail,
+            encryptedName: _encryptedName,
+            encryptedUsername: _encryptedUsername,
+            encryptedPhoneNumber: _encryptedPhoneNumber,
+            encryptedCountry: "",
+            encryptedGender: "",
+            encryptedDateOfBirth: "",
+            imageLink: "",
+            fbLink: "",
+            igLink: "",
+            youtubeLink: "",
+            yTWelcomeLink: "",
+            tikTokLink: "",
+            wspLink: "",
+            bio: ""
+        });
+
+        usedEmails[_encryptedEmail] = true;
+        usedUsernames[_encryptedUsername] = true;
+        usedPhoneNumbers[_encryptedPhoneNumber] = true;
+        userRegister[_address] = true;
+
+        emit UserCreated(_address);
+    }
+
+    //User Variables
+
     function newUser(
         string memory _encryptedEmail, 
         string memory _encryptedName,
@@ -125,7 +162,6 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
     ) public {
         require(userRegister[msg.sender], "Debes estar registrado");
 
-        // Verifica que los nuevos datos no estén usados, a menos que sean iguales a los actuales
         if (keccak256(bytes(_encryptedEmail)) != keccak256(bytes(personalDataMap[msg.sender].encryptedEmail))) {
             require(!usedEmails[_encryptedEmail], "Email already used");
             usedEmails[_encryptedEmail] = true;
@@ -176,13 +212,16 @@ contract POI is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ownabl
         emit UserImgChanged(msg.sender, _imageLink);
     }
 
-    function createNewUser(
+    //New Logic
+
+
+        function createNewUserFromUser(
         address _address,
         string memory _encryptedEmail, 
         string memory _encryptedName,
         string memory _encryptedUsername,
         string memory _encryptedPhoneNumber
-    ) public onlyOwner {
+    ) public  {
         require(!usedEmails[_encryptedEmail], "Email already used");
         require(!usedUsernames[_encryptedUsername], "Username already used");
         require(!usedPhoneNumbers[_encryptedPhoneNumber], "Phone number already used");

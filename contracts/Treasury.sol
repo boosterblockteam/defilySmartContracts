@@ -5,15 +5,13 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol"; //NUEVO
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol"; //NUEVO
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol"; 
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol"; 
 
 bytes32 constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 bytes32 constant CLAIMS_CONTRACT_ROLE = keccak256("CLAIMS_CONTRACT_ROLE");
-
 uint8 constant ORDER_TYPE_MARKET = 1;
 uint8 constant ORDER_TYPE_LIMIT = 2;
-
 uint8 constant CLOSE_REASON_TAKE_PROFIT = 1;
 uint8 constant CLOSE_REASON_STOP_LOSS = 2;
 uint8 constant CLOSE_REASON_CANCEL = 3;
@@ -27,8 +25,19 @@ struct Order {
     uint8 closeReason;
 }
 
-contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, OwnableUpgradeable { //SE AGREGO  UUPSUpgradeable, OwnableUpgradeable
+contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, OwnableUpgradeable { 
     using SafeERC20 for IERC20;
+
+    error AmountIsZero();
+    error NotEnoughBalance();
+    error OrderNotOpened();
+    error OrderCantBeCancelled();
+
+    IERC20 public token;
+    Order[] public orders;
+    uint256 pendingPerformanceFee;
+    int256 public availableProfit;
+
 
     event OrderOpened(
         uint32 indexed orderId,
@@ -42,15 +51,6 @@ contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, O
         int128 profit
     );
 
-    error AmountIsZero();
-    error NotEnoughBalance();
-    error OrderNotOpened();
-    error OrderCantBeCancelled();
-
-    IERC20 public token;
-    Order[] public orders;
-    uint256 pendingPerformanceFee;
-    int256 public availableProfit;
 
     function initialize(IERC20 token_) public initializer {
         __AccessControl_init(); 
@@ -60,7 +60,7 @@ contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, O
         token = token_;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {} //NUEVO
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
 
     function totalOrders() external view returns (uint32) {
@@ -104,13 +104,19 @@ contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, O
     function withdrawProfit(
         uint256 profit,
         uint256 performanceFees
-    ) external onlyRole(CLAIMS_CONTRACT_ROLE) {
+    ) external onlyOwner {
         uint256 total = profit + performanceFees;
         if (total > availableBalance() || int256(total) > availableProfit)
             revert NotEnoughBalance();
-        token.safeTransfer(msg.sender, profit);
+        token.safeTransfer(stakingAddress, profit);
         pendingPerformanceFee += performanceFees;
         availableProfit -= int256(total);
+
+        (bool success, bytes memory data) = stakingAddress.call(
+            abi.encodeWithSignature("withdrawProfit(uint256)", profit)
+        );
+
+        require(success, "withdrawProfit call failed");
     }
 
     function withdrawPerformanceFees()
@@ -163,4 +169,17 @@ contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, O
     }
 
     uint256[99] __gap;
+
+    function setTokenContract(IERC20 _tokenAddress) public onlyOwner {
+        token = _tokenAddress;
+    }
+
+    //NewLogic
+
+    address public stakingAddress;
+
+    function setStakingContract(address _stakingAddress) public onlyOwner {
+        stakingAddress = _stakingAddress;
+    }
+
 }
