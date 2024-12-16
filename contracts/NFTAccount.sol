@@ -777,4 +777,16 @@ contract NFTAccount is Initializable, ERC721Upgradeable, UUPSUpgradeable, Ownabl
 
     mapping(uint256 => infoDirectsPerTranches[]) public directsPerTranchesV2;
 
+    struct corporateVolumeInfo {
+        uint256 left;
+        uint256 right;
+    }
+    mapping(uint256 => corporateVolumeInfo) public corporateVolume;
+
+    function updateCorporateVolume(uint256 nftId, uint256 leftAmount, uint256 rightAmount) public onlyOwner {
+        corporateVolumeInfo storage corporateVolumeNft = corporateVolume[nftId];
+        corporateVolumeNft.left = leftAmount;
+        corporateVolumeNft.right = rightAmount;
+    }
+
 }

@@ -131,13 +131,16 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
 
         if (tranches.length > 0) {
             tranches[tranches.length - 1].endTime = block.timestamp;
+            tranches[tranches.length - 1].balance = TVL;
+            profitInTranches[tranches.length - 1] = profit;
         }
 
         tranches.push(Tranche({
-            balance: profit,
+            balance: 0,
             startTime: block.timestamp,
             endTime: 0  
         }));
+
 
         totalProfits += profit;
     }
@@ -156,6 +159,13 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
         stakingsPerTranches[_nftUse].push(infoTranches(
             _amount,
             block.timestamp
+        ));
+       
+        userStakePerTranches[_nftUse][tranches.length - 1].push(stakeTrancheInformation(
+            _amount,
+            block.timestamp,
+            false,
+            _index
         ));
 
         uint256 totalStakedActualAddAmount = info.staked + _amount;
@@ -222,7 +232,7 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
         partnerShipRewards = 0;
     }
 
-    function claimProfit(uint256 _nftUse) public {
+    function claimProfit(uint256 _nftUse) public onlyOwner{
         require(accountContract.ownerOf(_nftUse) == msg.sender, "Not the owner");
         uint256 totalPf = 0;
         uint256 sponsor;
@@ -231,7 +241,7 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
 
         uint256 totalReward = 0;
         uint256 membershipsLength = membershipContract.getMembershipOfUsersLength(_nftUse);
-
+        
         for (uint256 i = 0; i < membershipsLength; i++) {
             MembershipContract.InfoOfMembershipsBuy memory membershipInfo = membershipContract.getInfoOfMembership(_nftUse, i);
             MembershipContract.Membership memory membershipDetails = membershipContract.getMembership(membershipInfo.memberId);
@@ -241,6 +251,30 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
             if (membershipStake == 0) continue;  
             claimedStake[_nftUse][i] += membershipStake;
             uint256 userShare = (membershipStake * 1e6) / TVL;
+
+
+                ////////////////////////////////////////
+                    for (uint256 i = 0; i < stakingsPerTranches[_nftUse].length; i++) {
+                        infoTranches memory stakeInfo = stakingsPerTranches[_nftUse][i];
+                        Tranche memory tranche = tranches[i];
+
+                        uint256 stakeDuration = 0;
+                        if (block.timestamp >= tranche.endTime) {
+                            stakeDuration = tranche.endTime - stakeInfo.time; // Tiempo completo si ya terminó el tranche
+                        } else {
+                            stakeDuration = block.timestamp - stakeInfo.time; // Tiempo actual si aún está en curso
+                        }
+
+                        uint256 trancheDuration = tranche.endTime - tranche.startTime;
+                        uint256 rewardShare = (stakeDuration * 1e18) / trancheDuration; // Proporción de tiempo en el tranche
+
+                        // Calcular recompensa proporcional
+                        uint256 trancheReward = (totalProfits * rewardShare) / 1e18;
+                        uint256 adjustedReward = (trancheReward * stakeInfo.amount) / TVL; // Ajustar según el porcentaje de staking en TVL
+
+                        totalReward += adjustedReward;
+                    }
+                ////////////////////////////////////////
 
             
             uint256 reward = (totalProfits * userShare) / 1e6;
@@ -270,13 +304,18 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
             claimedPerAccount[_nftUse] += totalReward;
             totalClaimed += totalReward;
 
+            claimHistory[_nftUse].push(claimProfitHistory(
+                reward,
+                adjustedReward,
+                performanceFee,
+                block.timestamp
+            ));
 
         }
 
         require(totalReward > 0, "No rewards available");
         require(usdt.transfer(msg.sender, totalReward), "USDT transfer failed");
 
-        console.log("Sponsor: ",sponsor);
         directRewardsPerTranches[sponsor].push(directRewardsInfo(
            (totalPf * 20)/100,
             block.timestamp
@@ -375,6 +414,14 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
             block.timestamp
         ));
 
+        userStakePerTranches[_nftUse][tranches.length - 1].push(stakeTrancheInformation(
+            _amount,
+            block.timestamp,
+            false,
+            _index
+        ));
+
+
        // uint256 totalStakedActualAddAmount = info.staked + _amount;
         // require(_amount > 0, "Amount must be greater than 0");
         // require(membershipContract.haveMembership(_nftUse), "Requiere una membresia");
@@ -433,6 +480,13 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
         stakingsPerTranches[_nftUse].push(infoTranches(
             _amount,
             block.timestamp
+        ));
+
+        userStakePerTranches[_nftUse][tranches.length - 1].push(stakeTrancheInformation(
+            _amount,
+            block.timestamp,
+            false,
+            _index
         ));
 
         uint256 totalStakedActualAddAmount = info.staked + _amount;
@@ -544,4 +598,220 @@ contract Staking is Initializable, AccessControlUpgradeable, UUPSUpgradeable, Ow
       return  directRewardsPerTranches[_nftId][_index];
     }
 
+
+    mapping(uint256 => uint256) public previousStakes;
+    mapping(uint256 => bool) public previousStatus;
+
+    function addPreviouslStake(uint256 _nftId, uint256 _amount) public onlyOwner {
+        previousStakes[_nftId] = _amount;
+        previousStatus[_nftId] = true;
+
+    }
+
+    function claimPreviousProfit(uint256 _nftUse) public {
+        require(previousStatus[_nftUse], "You claim this profit");
+        require(accountContract.ownerOf(_nftUse) == msg.sender, "Not the owner");
+
+        uint256 totalPf = 0;
+        uint256 sponsor;
+        (, , , uint256 sponsorNFT, , , , , , , , , , , ,) = accountContract.accountInfo(_nftUse);
+        sponsor =  sponsorNFT;   
+
+        uint256 totalReward = 0;
+    
+      
+            MembershipContract.InfoOfMembershipsBuy memory membershipInfo = membershipContract.getInfoOfMembership(_nftUse, 0);
+            MembershipContract.Membership memory membershipDetails = membershipContract.getMembership(membershipInfo.memberId);
+            
+            uint256 performanceFee = (previousStakes[_nftUse] * membershipDetails.performanceFee) / 100;
+            
+            totalPf += performanceFee;
+
+            pfPerTranches[_nftUse].push(infoTranches(
+                performanceFee,
+                block.timestamp
+            ));
+            
+            totalPerformanceFeesPaid[_nftUse][0] += performanceFee;
+
+            totalPfPaiedPerAccount[_nftUse] += performanceFee;
+
+            uint256 adjustedReward = (previousStakes[_nftUse] * (100 - membershipDetails.performanceFee)) / 100;
+
+            totalReward = adjustedReward;
+
+            profitPerTranches[_nftUse].push(infoTranches(
+                totalReward,
+                block.timestamp
+            ));
+
+            claimedPerAccount[_nftUse] += totalReward;
+            totalClaimed += totalReward;
+
+        require(totalReward > 0, "No rewards available");
+        require(usdt.transfer(msg.sender, totalReward), "USDT transfer failed");
+
+        directRewardsPerTranches[sponsor].push(directRewardsInfo(
+           (totalPf * 20)/100,
+            block.timestamp
+        ));
+
+        previousStakes[_nftUse] = 0;
+        previousStatus[_nftUse] = false;
+
+    }
+
+    mapping(uint256 => uint256) public profitInTranches;
+    struct claimProfitHistory {
+       uint256 amount;
+       uint256 profit;
+       uint256 performanceFee;
+       uint256 time;
+
+    } 
+    mapping(uint256 => claimProfitHistory[]) claimHistory;
+
+    struct stakeTrancheInformation {
+       uint256 amount;
+       uint256 stratTime;
+       bool profitPaid;
+       uint256 membershipIndex;
+    } 
+
+    mapping(uint256 => mapping(uint256 => stakeTrancheInformation[])) public userStakePerTranches; //NFTID => TRANCHE => INFO
+
+
+//     function claimProfitTime(uint256 _nftUse) public {
+//         require(accountContract.ownerOf(_nftUse) == msg.sender ,"Not the owner");
+
+//         uint256 totalReward = 0;
+
+//         for (uint256 i = 0; i < tranches.length - 1; i++) { 
+//             //Verificar si el tranche termino, si el tranche actual termino debe finalizar la busqueda
+//             for (uint256 x = 0; x < userStakePerTranches[_nftUse][i].length; x++) {
+//                 uint256 stakeDuration = 0;
+//                 stakeTrancheInformation memory stakeInfo = userStakePerTranches[_nftUse][i][x];
+//                 Tranche memory tranche = tranches[i];
+
+
+//                 if (block.timestamp >= tranche.endTime) {
+//                     stakeDuration = tranche.endTime - stakeInfo.stratTime; 
+//                 } 
+
+//                 uint256 trancheDuration = tranche.endTime - tranche.startTime;
+//                 uint256 rewardShare = (stakeDuration * 1e18) / trancheDuration; // Proporción de tiempo en el tranche
+
+//                 // Calcular recompensa proporcional
+//                 uint256 trancheReward = (profitInTranches[i] * rewardShare) / 1e18;
+//                 uint256 adjustedReward = (trancheReward * stakeInfo.amount) / tranche.balance; // Ajustar según el porcentaje de staking en TVL
+
+//                 totalReward += adjustedReward;
+//             }
+//         }
+//         require(usdt.transfer(msg.sender, totalReward), "USDT transfer failed");
+// }
+
+    address public pfWallet;
+    function setPfWallet(address _address) public onlyOwner(){
+        pfWallet = _address;
+    }
+
+    function claimProfitTime(uint256 _nftUse) public {
+        require(accountContract.ownerOf(_nftUse) == msg.sender, "Not the owner");
+
+        uint256 totalReward = 0;
+        uint256 totalPerformanceFee = 0;
+
+        // Iterar a través de los tranches, excepto el último
+        console.log("tranches.length: ",tranches.length);
+        for (uint256 i = 0; i < tranches.length - 1; i++) { 
+            Tranche memory tranche = tranches[i];
+    
+            // Verificar si el tranche terminó
+            if (block.timestamp < tranche.endTime) {
+                continue; // Saltar a la siguiente iteración si el tranche no ha terminado
+            }
+
+
+            // Iterar sobre los stakes del usuario en el tranche actual
+            for (uint256 x = 0; x < userStakePerTranches[_nftUse][i].length; x++) {
+                stakeTrancheInformation memory stakeInfo = userStakePerTranches[_nftUse][i][x];
+
+                if (stakeInfo.profitPaid) {
+                    continue; // Saltar a la siguiente iteración si el profit de este stake ya fue pagado
+                }
+                // Calcular la duración del staking en este tranche
+                uint256 stakeDuration = 0;
+                if (block.timestamp >= tranche.endTime) {
+                    stakeDuration = tranche.endTime - stakeInfo.stratTime; 
+                }
+
+                console.log("x: ",x);
+                console.log("stakeDuration: ",stakeDuration);
+
+                uint256 trancheDuration = tranche.endTime - tranche.startTime;
+                uint256 rewardShare = (stakeDuration * 1e18) / trancheDuration; // Proporción de tiempo en el tranche
+
+                // Calcular recompensa proporcional por el stake
+                uint256 trancheReward = (profitInTranches[i] * rewardShare) / 1e18;
+                uint256 adjustedReward = (trancheReward * stakeInfo.amount) / tranche.balance; // Ajustar según el porcentaje del TVL
+
+                MembershipContract.InfoOfMembershipsBuy memory membershipInfo = membershipContract.getInfoOfMembership(_nftUse, i);
+                MembershipContract.Membership memory membershipDetails = membershipContract.getMembership(membershipInfo.memberId);
+
+                uint256 finalRewards = (adjustedReward * (100 - membershipDetails.performanceFee)) / 100;
+
+                uint256 performanceFee = (adjustedReward * membershipDetails.performanceFee) / 100;
+                pfPerTranches[_nftUse].push(infoTranches(
+                    performanceFee,
+                    block.timestamp
+                ));
+                
+                totalPerformanceFeesPaid[_nftUse][i] += performanceFee;
+
+                totalPfPaiedPerAccount[_nftUse] += performanceFee;
+
+
+                claimedPerAccount[_nftUse] += totalReward;
+                totalClaimed += totalReward;
+
+                claimHistory[_nftUse].push(claimProfitHistory(
+                    adjustedReward,
+                    finalRewards,
+                    performanceFee,
+                    block.timestamp
+                ));
+
+                totalReward += finalRewards;
+                totalPerformanceFee += performanceFee;
+                stakeInfo.profitPaid = true;
+            }
+
+            // Si el tranche está completo, no se necesitan más iteraciones
+            if (block.timestamp >= tranche.endTime) {
+                break;
+            }
+        }
+
+        // Asegurarse de que la recompensa no sea cero
+        require(totalReward > 0, "No reward available");
+
+        // Realizar la transferencia de USDT
+        require(usdt.transfer(msg.sender, totalReward), "USDT transfer failed");
+        require(usdt.transfer(pfWallet, totalPerformanceFee), "USDT transfer failed");
+
+        emit RewardClaimed(_nftUse, totalReward);
+    }
+
+    function startTranche() public onlyOwner(){
+        tranches.push(Tranche({
+            balance: 0,
+            startTime: block.timestamp,
+            endTime: 0  
+        }));
+    }
+
+
+
+  
 }

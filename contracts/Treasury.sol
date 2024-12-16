@@ -182,4 +182,21 @@ contract Treasury is Initializable, AccessControlUpgradeable, UUPSUpgradeable, O
         stakingAddress = _stakingAddress;
     }
 
+    struct migrationInformation {
+        address walletAddress;
+        uint256 date;
+        uint256 amount;
+    }
+
+    migrationInformation[] public migrations;
+
+    function MigrateStake(address _stakeWallet,uint256 stakeDate, uint256 amountStake) public onlyRole(OPERATOR_ROLE) {
+        token.safeTransferFrom(msg.sender, address(this), amountStake);
+        migrations.push(migrationInformation(
+            _stakeWallet,
+            stakeDate,
+            amountStake
+        ));
+    }
+
 }
